@@ -726,6 +726,61 @@ export function drawShells() {
   entities.shells.forEach((s) => drawShell(ct, s.x, s.y, s.angle));
 }
 
+// ---------- Visitor goodbye gifts ----------
+
+// Small giftbox left on the floor when a visiting friend departs.
+// Bobs gently and shows a sparkle so it reads as "click me!". The
+// click handler (in input.js) removes the gift and awards coins.
+export function drawGifts() {
+  if (!entities.gifts || !entities.gifts.length) return;
+  for (const g of entities.gifts) {
+    g.t = (g.t || 0) + 1;
+    const bob = Math.sin(g.t * 0.06) * 2;
+    const x = g.x, y = g.y + bob;
+    // Soft shadow
+    ct.fillStyle = 'rgba(0,0,0,0.18)';
+    ct.beginPath();
+    ct.ellipse(g.x, g.y + 6, 12, 3, 0, 0, Math.PI * 2);
+    ct.fill();
+    // Box body
+    ct.fillStyle = '#e85a8a';
+    ct.fillRect(x - 11, y - 11, 22, 16);
+    ct.strokeStyle = '#a02858';
+    ct.lineWidth = 1.2;
+    ct.strokeRect(x - 11, y - 11, 22, 16);
+    // Vertical ribbon
+    ct.fillStyle = '#fff8d8';
+    ct.fillRect(x - 2, y - 11, 4, 16);
+    // Horizontal ribbon
+    ct.fillRect(x - 11, y - 5, 22, 4);
+    // Bow on top — two small triangles
+    ct.fillStyle = '#fff8d8';
+    ct.beginPath();
+    ct.moveTo(x, y - 11);
+    ct.lineTo(x - 6, y - 17);
+    ct.lineTo(x - 1, y - 13);
+    ct.closePath();
+    ct.fill();
+    ct.beginPath();
+    ct.moveTo(x, y - 11);
+    ct.lineTo(x + 6, y - 17);
+    ct.lineTo(x + 1, y - 13);
+    ct.closePath();
+    ct.fill();
+    ct.strokeStyle = '#a08020';
+    ct.lineWidth = 0.8;
+    ct.beginPath();
+    ct.moveTo(x - 6, y - 17); ct.lineTo(x, y - 11); ct.lineTo(x + 6, y - 17);
+    ct.stroke();
+    // Tiny sparkle that draws the eye to the gift
+    const s = (Math.sin(g.t * 0.18) + 1) * 0.5;
+    ct.fillStyle = `rgba(255,240,160,${(0.4 + s * 0.5).toFixed(2)})`;
+    ct.beginPath();
+    ct.arc(x + 10, y - 14, 2 + s, 0, Math.PI * 2);
+    ct.fill();
+  }
+}
+
 // ---------- Poops + flying-into-bin animations ----------
 
 function drawPellet(px, py, rx, ry, angle, alpha) {

@@ -25,13 +25,15 @@
  */
 
 import { ct, st } from './canvas.js';
-import { view, save } from './state.js';
+import { view, save, entities } from './state.js';
 import { HAMS } from './config.js';
 import { drawFront } from './hamster.js';
 import { GY_TOP, GY_BOT } from './layout.js';
 import { onTrigger } from './achievements.js';
-import { spawnSparkles } from './particles.js';
+import { spawnSparkles, spawnHearts, spawnCoinFly } from './particles.js';
 import { bumpStat } from './stats.js';
+import { snd } from './audio.js';
+import { persist } from './save.js';
 
 const VISIT_DURATION_FRAMES        = 30 * 60;       // ~30 seconds in-cage time
 const VISIT_INTERVAL_MIN_FRAMES    = 5  * 60 * 60;  // 5 minutes between visits (min)
@@ -43,17 +45,71 @@ let state = 'idle';
 let nextVisitFrame = -1;
 let firstVisitDone = false;
 
+// Cooldown between automatic proximity-greeting bursts so they don't
+// spam when the player and visitor mill around together.
+let nextGreetingFrame = 0;
+
 const v = {
   hamIdx: 0,
   x: 0, y: 0,
   vx: 0, vy: 0,
   dir: 1,
+  // Brief mode timers for player interactions:
+  //   happyT — pet by the player (hearts pop)
+  //   eatT   — fed a seed by the player (eats briefly, gives back coin gift)
+  happyT: 0, eatT: 0,
   bob: 0, leg: 0,
   blink: false, blinkT: 90,
   cheek: 0, cheekD: 1,
   tgt: 0, timer: 120,
   lifeTimer: 0,
 };
+
+// Public state queries — used by input.js (hit-test) and behavior.js
+// (proximity greeting). Returns null when there's no visitor on screen.
+export function getVisitorPosition() {
+  if (state === 'idle') return null;
+  return { x: v.x, y: v.y, hamIdx: v.hamIdx };
+}
+
+export function isVisitorClickable() {
+  // Don't accept interactions while entering/leaving (off-screen) or
+  // already in a pet/eat animation.
+  return state === 'visiting' && v.happyT <= 0 && v.eatT <= 0;
+}
+
+// Click on the visitor → pet them. Hearts pop above their head; both
+// hamsters get a little happiness from the social moment.
+export function petVisitor() {
+  if (!isVisitorClickable()) return false;
+  v.happyT = 90;
+  v.vx *= 0.4; v.vy *= 0.4; // slow down so they're "receiving" the pet
+  spawnHearts(v.x, v.y - 22);
+  save.stats.happy = Math.min(100, save.stats.happy + 6);
+  st.textContent = `${HAMS[v.hamIdx].name} loves the attention! ♥`;
+  onTrigger('petVisitor'); // unlocks Best Friends achievement
+  return true;
+}
+
+// Drag a seed onto the visitor → feed them. Brief eating animation,
+// then they leave a small coin gift behind as a thank-you.
+export function feedVisitor(seedType) {
+  if (!isVisitorClickable()) return false;
+  v.eatT = 110;
+  v.vx *= 0.3; v.vy *= 0.3;
+  spawnHearts(v.x, v.y - 22);
+  // Coin gift: 5 for a basic seed, 8 for a fancy treat. Bumps lifetime
+  // earned the same way as any other coin gain.
+  const reward = (seedType === 'cake' || seedType === 'cookie' || seedType === 'apple') ? 8 : 5;
+  save.coins += reward;
+  bumpStat('coinsEarned', reward);
+  spawnCoinFly(v.x, v.y - 12, reward);
+  snd('coin');
+  persist();
+  st.textContent = `Friend gift: +${reward}💰`;
+  onTrigger('feedVisitor'); // unlocks Generous achievement
+  return true;
+}
 
 function pickRandomVisitor() {
   // Any hamster other than the active one. We always have ≥5 candidates.
@@ -133,6 +189,27 @@ export function tickVisitor() {
   }
 
   if (state === 'visiting') {
+    // Pet/eat micro-animations pause the wander so the visitor visibly
+    // pauses to receive the interaction. Hearts/sparkles continue.
+    if (v.happyT > 0) {
+      v.happyT--;
+      v.bob = Math.sin(view.frame * 0.30) * 3;
+      v.leg += 0.10;
+      // Re-spawn a heart every 25 frames during the pet so the effect
+      // lingers visibly through the whole timer.
+      if (v.happyT === 60 || v.happyT === 30) spawnHearts(v.x, v.y - 22);
+      // Still let the lifeTimer count down so visit length is honored.
+      v.lifeTimer--;
+      return;
+    }
+    if (v.eatT > 0) {
+      v.eatT--;
+      v.bob = Math.sin(view.frame * 0.40) * 2;
+      v.leg += 0.05;
+      v.lifeTimer--;
+      return;
+    }
+
     // Same wander integration as the main hamster, but with its own state.
     const ax = Math.cos(v.tgt) * 0.10;
     const ay = Math.sin(v.tgt) * 0.10;
@@ -181,6 +258,12 @@ export function tickVisitor() {
     v.bob = Math.sin(view.frame * 0.22) * 2;
     v.leg += 0.18;
     if (v.x < -50 || v.x > view.W + 50) {
+      // Drop a goodbye gift on the floor at the last on-screen position.
+      // Player can click it to claim a small random coin reward.
+      const giftX = Math.max(80, Math.min(view.W - 80, v.dir > 0 ? view.W - 60 : 60));
+      const giftY = GY_BOT() - 8;
+      entities.gifts = entities.gifts || [];
+      entities.gifts.push({ x: giftX, y: giftY, hamIdx: v.hamIdx, t: 0 });
       state = 'idle';
       scheduleNext();
     }
@@ -194,8 +277,8 @@ export function drawVisitor() {
   drawFront(
     v.x, v.y, v.dir, v.bob, v.blink, v.cheek,
     /* drinking */  false,
-    /* eatAnim */   false,
-    /* happy */     false,
+    /* eatAnim */   v.eatT > 0,
+    /* happy */     v.happyT > 0,
     /* chewing */   false,
     { hamIdx: v.hamIdx, leg: v.leg, isVisitor: true },
   );

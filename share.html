@@ -1069,6 +1069,8 @@ var ACHIEVEMENT_DEFS = [
   { id: "treatRain", icon: "\uD83C\uDF27️", name: "Storm Catcher", desc: "Play a Treat Rain round.", reward: 10, trigger: "treatRain" },
   { id: "treatStorm", icon: "⚡", name: "Eye of the Storm", desc: "Catch 25+ treats in one round.", reward: 60, trigger: "treatStorm" },
   { id: "visitor", icon: "\uD83D\uDC4B", name: "Friendly Neighbor", desc: "Have a friend hamster visit.", reward: 15, trigger: "visitor" },
+  { id: "petVisitor", icon: "\uD83D\uDC9E", name: "Best Friends", desc: "Pet a visiting friend.", reward: 20, trigger: "petVisitor" },
+  { id: "feedVisitor", icon: "\uD83C\uDF81", name: "Generous", desc: "Feed a visiting friend a seed.", reward: 25, trigger: "feedVisitor" },
   { id: "ladder", icon: "\uD83E\uDE9C", name: "Top of the World", desc: "Climb the ladder to the top.", reward: 20, trigger: "ladder" },
   { id: "streak3", icon: "\uD83C\uDF1F", name: "Daily Visitor", desc: "Reach a 3-day login streak.", reward: 25, trigger: "streak3" },
   { id: "streak7", icon: "⭐", name: "Weekly Habit", desc: "Reach a 7-day login streak.", reward: 75, trigger: "streak7" },
@@ -1175,6 +1177,7 @@ var entities = {
   sparkles: [],
   coinFlies: [],
   basketSeeds: [],
+  gifts: [],
   poopTick: 0,
   binCount: 0
 };
@@ -2872,6 +2875,52 @@ function drawShell(c, x, y, angle) {
 function drawShells() {
   entities.shells.forEach((s) => drawShell(ct, s.x, s.y, s.angle));
 }
+function drawGifts() {
+  if (!entities.gifts || !entities.gifts.length)
+    return;
+  for (const g of entities.gifts) {
+    g.t = (g.t || 0) + 1;
+    const bob = Math.sin(g.t * 0.06) * 2;
+    const x = g.x, y = g.y + bob;
+    ct.fillStyle = "rgba(0,0,0,0.18)";
+    ct.beginPath();
+    ct.ellipse(g.x, g.y + 6, 12, 3, 0, 0, Math.PI * 2);
+    ct.fill();
+    ct.fillStyle = "#e85a8a";
+    ct.fillRect(x - 11, y - 11, 22, 16);
+    ct.strokeStyle = "#a02858";
+    ct.lineWidth = 1.2;
+    ct.strokeRect(x - 11, y - 11, 22, 16);
+    ct.fillStyle = "#fff8d8";
+    ct.fillRect(x - 2, y - 11, 4, 16);
+    ct.fillRect(x - 11, y - 5, 22, 4);
+    ct.fillStyle = "#fff8d8";
+    ct.beginPath();
+    ct.moveTo(x, y - 11);
+    ct.lineTo(x - 6, y - 17);
+    ct.lineTo(x - 1, y - 13);
+    ct.closePath();
+    ct.fill();
+    ct.beginPath();
+    ct.moveTo(x, y - 11);
+    ct.lineTo(x + 6, y - 17);
+    ct.lineTo(x + 1, y - 13);
+    ct.closePath();
+    ct.fill();
+    ct.strokeStyle = "#a08020";
+    ct.lineWidth = 0.8;
+    ct.beginPath();
+    ct.moveTo(x - 6, y - 17);
+    ct.lineTo(x, y - 11);
+    ct.lineTo(x + 6, y - 17);
+    ct.stroke();
+    const s = (Math.sin(g.t * 0.18) + 1) * 0.5;
+    ct.fillStyle = `rgba(255,240,160,${(0.4 + s * 0.5).toFixed(2)})`;
+    ct.beginPath();
+    ct.arc(x + 10, y - 14, 2 + s, 0, Math.PI * 2);
+    ct.fill();
+  }
+}
 function drawPellet(px, py, rx, ry, angle, alpha) {
   ct.save();
   ct.globalAlpha = alpha || 1;
@@ -3494,6 +3543,8 @@ var v = {
   vx: 0,
   vy: 0,
   dir: 1,
+  happyT: 0,
+  eatT: 0,
   bob: 0,
   leg: 0,
   blink: false,
@@ -3504,6 +3555,43 @@ var v = {
   timer: 120,
   lifeTimer: 0
 };
+function getVisitorPosition() {
+  if (state2 === "idle")
+    return null;
+  return { x: v.x, y: v.y, hamIdx: v.hamIdx };
+}
+function isVisitorClickable() {
+  return state2 === "visiting" && v.happyT <= 0 && v.eatT <= 0;
+}
+function petVisitor() {
+  if (!isVisitorClickable())
+    return false;
+  v.happyT = 90;
+  v.vx *= 0.4;
+  v.vy *= 0.4;
+  spawnHearts(v.x, v.y - 22);
+  save.stats.happy = Math.min(100, save.stats.happy + 6);
+  st.textContent = `${HAMS[v.hamIdx].name} loves the attention! ♥`;
+  onTrigger("petVisitor");
+  return true;
+}
+function feedVisitor(seedType) {
+  if (!isVisitorClickable())
+    return false;
+  v.eatT = 110;
+  v.vx *= 0.3;
+  v.vy *= 0.3;
+  spawnHearts(v.x, v.y - 22);
+  const reward = seedType === "cake" || seedType === "cookie" || seedType === "apple" ? 8 : 5;
+  save.coins += reward;
+  bumpStat("coinsEarned", reward);
+  spawnCoinFly(v.x, v.y - 12, reward);
+  snd("coin");
+  persist();
+  st.textContent = `Friend gift: +${reward}\uD83D\uDCB0`;
+  onTrigger("feedVisitor");
+  return true;
+}
 function pickRandomVisitor() {
   const others = HAMS.map((_, i) => i).filter((i) => i !== save.selected);
   return others[Math.floor(Math.random() * others.length)];
@@ -3576,6 +3664,22 @@ function tickVisitor() {
     return;
   }
   if (state2 === "visiting") {
+    if (v.happyT > 0) {
+      v.happyT--;
+      v.bob = Math.sin(view.frame * 0.3) * 3;
+      v.leg += 0.1;
+      if (v.happyT === 60 || v.happyT === 30)
+        spawnHearts(v.x, v.y - 22);
+      v.lifeTimer--;
+      return;
+    }
+    if (v.eatT > 0) {
+      v.eatT--;
+      v.bob = Math.sin(view.frame * 0.4) * 2;
+      v.leg += 0.05;
+      v.lifeTimer--;
+      return;
+    }
     const ax = Math.cos(v.tgt) * 0.1;
     const ay = Math.sin(v.tgt) * 0.1;
     v.vx += ax;
@@ -3636,6 +3740,10 @@ function tickVisitor() {
     v.bob = Math.sin(view.frame * 0.22) * 2;
     v.leg += 0.18;
     if (v.x < -50 || v.x > view.W + 50) {
+      const giftX = Math.max(80, Math.min(view.W - 80, v.dir > 0 ? view.W - 60 : 60));
+      const giftY = GY_BOT() - 8;
+      entities.gifts = entities.gifts || [];
+      entities.gifts.push({ x: giftX, y: giftY, hamIdx: v.hamIdx, t: 0 });
       state2 = "idle";
       scheduleNext();
     }
@@ -3644,7 +3752,7 @@ function tickVisitor() {
 function drawVisitor() {
   if (state2 === "idle")
     return;
-  drawFront(v.x, v.y, v.dir, v.bob, v.blink, v.cheek, false, false, false, false, { hamIdx: v.hamIdx, leg: v.leg, isVisitor: true });
+  drawFront(v.x, v.y, v.dir, v.bob, v.blink, v.cheek, false, v.eatT > 0, v.happyT > 0, false, { hamIdx: v.hamIdx, leg: v.leg, isVisitor: true });
   const bobOff = Math.sin(view.frame * 0.1) * 2;
   ct.font = "16px sans-serif";
   ct.textAlign = "center";
@@ -4055,6 +4163,7 @@ function feedSeed(seedIdx, dropX) {
   }, 8000);
 }
 var _prevStats = { hunger: 0, thirst: 0, energy: 0, happy: 0, clean: 0 };
+var _nextGreetingFrame = 0;
 function checkStatMaxFlashes() {
   const s = save.stats;
   for (const key in _prevStats) {
@@ -4191,6 +4300,7 @@ function resetGame() {
   entities.hearts = [];
   entities.sparkles = [];
   entities.coinFlies = [];
+  entities.gifts = [];
   entities.poopTick = 0;
   entities.binCount = 0;
   drag.active = false;
@@ -4226,6 +4336,18 @@ function tick() {
     const cp = hamPos();
     spawnSparkles(cp.x, cp.y - 22, 16);
     ham.happyHopT = 25;
+  }
+  const visPos = getVisitorPosition();
+  if (visPos && view.frame > _nextGreetingFrame) {
+    const p = hamPos();
+    const dist = Math.hypot(visPos.x - p.x, visPos.y - p.y);
+    if (dist < 60) {
+      const mx = (visPos.x + p.x) / 2;
+      const my = (visPos.y + p.y) / 2 - 18;
+      spawnHearts(mx, my);
+      save.stats.happy = Math.min(100, save.stats.happy + 4);
+      _nextGreetingFrame = view.frame + 5 * 60;
+    }
   }
   if (entities.poopTick >= POOP_INTERVAL) {
     entities.poopTick = 0;
@@ -5508,6 +5630,22 @@ function dropSeed(mx, my) {
     drag.active = false;
     return;
   }
+  const visPos = getVisitorPosition();
+  if (visPos && Math.hypot(mx - visPos.x, my - visPos.y) < 55) {
+    if (feedVisitor(drag.type)) {
+      const s = entities.basketSeeds[drag.seedIdx];
+      if (s) {
+        s.eaten = true;
+        s.dragging = false;
+        setTimeout(() => {
+          s.eaten = false;
+        }, 8000);
+      }
+      drag.active = false;
+      drag.seedIdx = -1;
+      return;
+    }
+  }
   const p = hamPos();
   if (Math.hypot(mx - p.x, my - p.y) < 65 && (ham.mode === "wander" || ham.mode === "happy")) {
     feedSeed(drag.seedIdx, drag.x);
@@ -5627,6 +5765,23 @@ function handleClick(mx, my) {
       goLadder();
       return;
     }
+  }
+  if (entities.gifts && entities.gifts.length) {
+    for (let i = entities.gifts.length - 1;i >= 0; i--) {
+      const g = entities.gifts[i];
+      if (Math.hypot(mx - g.x, my - (g.y - 8)) < 18) {
+        const reward = 10 + Math.floor(Math.random() * 16);
+        addCoins(reward, g.x, g.y - 8);
+        entities.gifts.splice(i, 1);
+        st.textContent = `Friend's gift: +${reward}\uD83D\uDCB0 ✨`;
+        return;
+      }
+    }
+  }
+  const visPos = getVisitorPosition();
+  if (visPos && Math.hypot(mx - visPos.x, my - visPos.y) < 50) {
+    if (petVisitor())
+      return;
   }
   const p = hamPos();
   if (Math.hypot(mx - p.x, my - p.y) < 55) {
@@ -5784,6 +5939,7 @@ function draw() {
   drawHut();
   drawBin();
   drawBall();
+  drawGifts();
   drawAmbient();
   drawVisitor();
   drawRoomba();

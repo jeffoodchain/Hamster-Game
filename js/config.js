@@ -231,6 +231,8 @@ export const ACHIEVEMENT_DEFS = [
 
   // Visiting friend
   { id: 'visitor',      icon: '👋', name: 'Friendly Neighbor',  desc: 'Have a friend hamster visit.',        reward: 15, trigger: 'visitor' },
+  { id: 'petVisitor',   icon: '💞', name: 'Best Friends',       desc: 'Pet a visiting friend.',              reward: 20, trigger: 'petVisitor' },
+  { id: 'feedVisitor',  icon: '🎁', name: 'Generous',           desc: 'Feed a visiting friend a seed.',      reward: 25, trigger: 'feedVisitor' },
 
   // Climbing ladder
   { id: 'ladder',       icon: '🪜', name: 'Top of the World',   desc: 'Climb the ladder to the top.',        reward: 20, trigger: 'ladder' },

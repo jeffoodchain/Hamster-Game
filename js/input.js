@@ -43,6 +43,7 @@ import { maybeShowFirstRun } from './firstrun.js';
 import { startTreatRain, tryCatchAt, isMinigameActive } from './minigame.js';
 import { checkDailyStreak } from './streak.js';
 import { fadeOutMusic } from './music.js';
+import { getVisitorPosition, petVisitor, feedVisitor } from './visitor.js';
 
 function evPos(e) {
   const r = cv.getBoundingClientRect();
@@ -108,6 +109,25 @@ function dropSeed(mx, my) {
   // Treat-jar treats are bought-and-fed from the shop, not dragged in-canvas.
   // The flag is here for safety: if jarTreat is somehow active, just clear it.
   if (drag.jarTreat) { drag.active = false; return; }
+
+  // Try the visitor first — if a seed is dropped on the visiting friend,
+  // they accept it as a gift and the player gets coins back.
+  const visPos = getVisitorPosition();
+  if (visPos && Math.hypot(mx - visPos.x, my - visPos.y) < 55) {
+    if (feedVisitor(drag.type)) {
+      // Mark this basket seed as eaten (regenerates on the same 8s timer
+      // as a normal feed) so we visibly consume it.
+      const s = entities.basketSeeds[drag.seedIdx];
+      if (s) {
+        s.eaten = true;
+        s.dragging = false;
+        setTimeout(() => { s.eaten = false; }, 8000);
+      }
+      drag.active = false;
+      drag.seedIdx = -1;
+      return;
+    }
+  }
 
   const p = hamPos();
   if (Math.hypot(mx - p.x, my - p.y) < 65 && (ham.mode === 'wander' || ham.mode === 'happy')) {
@@ -240,6 +260,28 @@ function handleClick(mx, my) {
       Math.abs(mx - LADDER_X()) < 22 &&
       my >= LADDER_TOP() - 12 && my <= LADDER_BOTTOM() + 4) {
     if (ham.mode === 'wander') { goLadder(); return; }
+  }
+
+  // ----- Goodbye gifts left by departed visitors (click to claim coins) -----
+  if (entities.gifts && entities.gifts.length) {
+    for (let i = entities.gifts.length - 1; i >= 0; i--) {
+      const g = entities.gifts[i];
+      if (Math.hypot(mx - g.x, my - (g.y - 8)) < 18) {
+        // Random reward 10-25 — chunkier than per-poop cleans, since
+        // visiting friend gifts are rare and feel like a treat.
+        const reward = 10 + Math.floor(Math.random() * 16);
+        addCoins(reward, g.x, g.y - 8);
+        entities.gifts.splice(i, 1);
+        st.textContent = `Friend's gift: +${reward}💰 ✨`;
+        return;
+      }
+    }
+  }
+
+  // ----- Visiting friend hamster (pet on click) -----
+  const visPos = getVisitorPosition();
+  if (visPos && Math.hypot(mx - visPos.x, my - visPos.y) < 50) {
+    if (petVisitor()) return;
   }
 
   // ----- Hamster itself (last so item targets aren't shadowed) -----

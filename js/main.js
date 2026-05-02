@@ -48,7 +48,7 @@ import { bgCv } from './canvas.js';
 import {
   drawTunnel, drawWheel, drawTreatJar, drawSandBath, drawChewLog,
   drawPoops, drawShells, drawBottle, drawBasket, drawHut, drawBin,
-  drawBall, drawSeed, drawLadder,
+  drawBall, drawSeed, drawLadder, drawGifts,
 } from './items.js';
 import { drawFront, drawSide, drawStatusBubble, drawIdleOverlay, drawExcitement } from './hamster.js';
 import { updateDrawHearts, updateDrawSparkles, updateDrawCoinFlies } from './particles.js';
@@ -95,6 +95,7 @@ function draw() {
   drawHut();
   drawBin();
   drawBall();
+  drawGifts();
 
   // Ambient critters — drawn after items but before the hamster so the
   // hamster sprite occludes anything that drifts behind it.

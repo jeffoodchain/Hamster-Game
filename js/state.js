@@ -127,6 +127,7 @@ export const entities = {
   sparkles: [],      // crunch / bath sparkles
   coinFlies: [],     // "+N💰" floating-text rewards
   basketSeeds: [],   // current seeds visible in the basket
+  gifts: [],         // visitor goodbye gifts: [{x, y, hamIdx, t}] — click to claim
   poopTick: 0,       // counter that triggers automatic poop spawns
   binCount: 0,       // total cleaned this play session (display only)
 };

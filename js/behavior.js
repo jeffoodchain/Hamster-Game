@@ -52,7 +52,7 @@ import { st } from './canvas.js';
 import { persist } from './save.js';
 import { onTrigger, bumpCounter, noteTreat, checkAll } from './achievements.js';
 import { resetMinigame } from './minigame.js';
-import { resetVisitor } from './visitor.js';
+import { resetVisitor, getVisitorPosition } from './visitor.js';
 import { resetRoomba } from './roomba.js';
 import { bumpStat } from './stats.js';
 
@@ -258,6 +258,9 @@ export function feedSeed(seedIdx, dropX) {
 // micro-celebration. Lives in a module-local; it's only meaningful as a
 // single-frame diff so it doesn't belong on the save.
 const _prevStats = { hunger: 0, thirst: 0, energy: 0, happy: 0, clean: 0 };
+// Cooldown for the proximity-greeting hearts so the player can't spam by
+// dragging the visitor and hamster close together every frame.
+let _nextGreetingFrame = 0;
 function checkStatMaxFlashes() {
   const s = save.stats;
   for (const key in _prevStats) {
@@ -372,6 +375,7 @@ export function resetGame() {
 
   entities.poops = []; entities.flyingPoops = []; entities.flyingItems = [];
   entities.shells = []; entities.hearts = []; entities.sparkles = []; entities.coinFlies = [];
+  entities.gifts = [];
   entities.poopTick = 0; entities.binCount = 0;
 
   drag.active = false; drag.seedIdx = -1; drag.jarTreat = false;
@@ -412,6 +416,23 @@ export function tick() {
     const cp = hamPos();
     spawnSparkles(cp.x, cp.y - 22, 16);
     ham.happyHopT = 25;
+  }
+
+  // Proximity greeting — when the player hamster and the visiting friend
+  // wander close together, fire a small heart shower at the midpoint and
+  // bump happiness. Cooldown of ~5 seconds prevents spam if they linger
+  // near each other.
+  const visPos = getVisitorPosition();
+  if (visPos && view.frame > _nextGreetingFrame) {
+    const p = hamPos();
+    const dist = Math.hypot(visPos.x - p.x, visPos.y - p.y);
+    if (dist < 60) {
+      const mx = (visPos.x + p.x) / 2;
+      const my = (visPos.y + p.y) / 2 - 18;
+      spawnHearts(mx, my);
+      save.stats.happy = Math.min(100, save.stats.happy + 4);
+      _nextGreetingFrame = view.frame + 5 * 60; // 5-second cooldown
+    }
   }
 
   if (entities.poopTick >= POOP_INTERVAL) {
