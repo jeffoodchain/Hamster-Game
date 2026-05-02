@@ -526,6 +526,19 @@
   text-align: center;
 }
 
+/* Attribution row in Help. Subtle by default — present for license
+   compliance, not a primary surface. */
+.helpCredits {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e0c8a0;
+  font-size: 10px;
+  color: #8a6840;
+  text-align: center;
+}
+.helpCredits a { color: #6a4818; }
+.helpCredits p { margin: 0; }
+
 /* The reset-save row is visually walled off so the button isn't an
    accidental click target when scrolling through help. Border + colour
    shift signal "this is the destructive area". */
