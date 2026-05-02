@@ -1,0 +1,687 @@
+/*
+ * styles.css
+ *
+ * All visual styling for the Hamster Game. The canvas itself is painted in JS;
+ * everything in this file styles the *overlays* that float above the canvas:
+ * the HUD strip, on-screen buttons (fullscreen, back, shop, mute, day/night),
+ * the status text pill, the day/night tint layer, and the shop modal.
+ */
+
+#gameContainer {
+  position: relative;
+  width: 100%;
+  height: 600px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #f5efe6;
+  font-family: 'Segoe UI', 'PingFang TC', sans-serif;
+  box-shadow: 0 6px 20px rgba(80, 50, 20, 0.14);
+}
+
+/* The game canvas fills the container; touch-action:none disables the
+   browser's default pan/zoom so we can handle drags ourselves. */
+#hc {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* ---------- HUD strip (top of screen during play) ---------- */
+
+#hud {
+  position: absolute;
+  top: 8px;
+  left: 54px;   /* leaves room for the fullscreen button at top-left */
+  right: 152px; /* leaves room for the back button + extra HUD buttons */
+  display: none;
+  gap: 6px;
+  align-items: center;
+  z-index: 8;
+  pointer-events: none; /* children re-enable as needed */
+}
+#hud.show { display: flex; }
+
+.pill {
+  background: rgba(250, 244, 234, 0.95);
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(140, 90, 40, 0.4);
+  font-size: 12px;
+  color: #5a3010;
+  pointer-events: auto;
+}
+
+#coinBadge {
+  font-weight: bold;
+  color: #a06010;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* The .pop class is toggled momentarily after each coin gain to trigger
+   a one-shot scale animation. JS removes/re-adds the class to restart it. */
+#coinBadge .pop { display: inline-block; animation: coinpop 0.4s ease; }
+@keyframes coinpop {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.4); color: #e8b020; }
+  100% { transform: scale(1); }
+}
+
+#statBars {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+.statBar { flex: 1; display: flex; align-items: center; gap: 3px; min-width: 0; }
+.statBar .icon { font-size: 13px; line-height: 1; flex-shrink: 0; }
+.statBar .bar {
+  flex: 1;
+  height: 7px;
+  border-radius: 4px;
+  background: #e8dccc;
+  overflow: hidden;
+  min-width: 18px;
+}
+/* Bar colors are set inline by JS so they can shift to red/orange when low. */
+.statBar .fill {
+  height: 100%;
+  transition: width 0.5s, background 0.5s;
+  border-radius: 4px;
+}
+
+#hudButtons { display: flex; gap: 6px; }
+
+.iconBtn {
+  font-size: 14px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(140, 90, 40, 0.4);
+  background: rgba(250, 244, 234, 0.92);
+  color: #6b4420;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1;
+  pointer-events: auto;
+}
+.iconBtn:hover { background: rgba(255, 235, 200, 1); }
+/* Disabled icon buttons (e.g. rain on cooldown) — slightly washed out and
+   non-interactive but still readable. */
+.iconBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: rgba(230, 218, 200, 0.7);
+}
+.iconBtn:disabled:hover { background: rgba(230, 218, 200, 0.7); }
+/* Rain button gets a fixed minimum width so the layout doesn't jiggle when
+   the label switches between 🌧️ and a "⏳45" cooldown counter. */
+#rainBtn { min-width: 44px; text-align: center; }
+
+/* Narrow viewport — the HUD has 7 buttons + a stats bar pill + a coin
+   pill. On widths below ~720 the row gets cramped, so we shrink padding,
+   tighten gaps, and steal a little of the safe-area on the sides so the
+   stat bars still have room to breathe. */
+@media (max-width: 720px) {
+  #hud { left: 48px; right: 130px; gap: 4px; }
+  .iconBtn { padding: 4px 7px; font-size: 13px; }
+  .pill { padding: 4px 8px; font-size: 11px; }
+  #hudButtons { gap: 4px; }
+  #rainBtn { min-width: 38px; }
+}
+
+/* ---------- Floating UI ---------- */
+
+/* Status text pill at the bottom — shows "Welcome…", "Refreshed!", etc. */
+#hst {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #6b5240;
+  background: rgba(250, 244, 234, 0.92);
+  padding: 4px 14px;
+  border-radius: 20px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+#backBtn {
+  display: none; /* shown only after a hamster is selected */
+  position: absolute;
+  top: 48px;
+  right: 12px;
+  font-size: 11px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(140, 90, 40, 0.4);
+  background: rgba(250, 244, 234, 0.92);
+  color: #6b4420;
+  cursor: pointer;
+  font-family: inherit;
+  z-index: 10;
+}
+
+#fullscreenBtn {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  font-size: 16px;
+  padding: 6px 10px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(140, 90, 40, 0.4);
+  background: rgba(250, 244, 234, 0.92);
+  color: #6b4420;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1;
+  z-index: 10;
+}
+
+/* ---------- Shop modal ---------- */
+
+#shopModal {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(40, 20, 10, 0.55);
+  z-index: 20;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+#shopModal.show { display: flex; }
+
+.shopBox {
+  background: #faf4ec;
+  border-radius: 18px;
+  padding: 16px 20px 20px;
+  max-width: 520px;
+  width: 100%;
+  max-height: 92%;
+  overflow: auto;
+  border: 3px solid #c89058;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+.shopBox h2 { margin: 0 0 4px; color: #5a3010; font-family: Georgia, serif; font-size: 20px; }
+.shopBox .sub { color: #9a7050; font-size: 11px; margin-bottom: 12px; }
+
+.shopTabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  border-bottom: 1.5px solid #e0c8a0;
+  padding-bottom: 8px;
+}
+.shopTab {
+  padding: 5px 14px;
+  border-radius: 14px;
+  border: 1.5px solid #d4b88a;
+  background: #fff8ed;
+  color: #7a5028;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.shopTab.active {
+  background: #c89058;
+  color: #fff;
+  border-color: #a06820;
+  font-weight: bold;
+}
+
+.shopGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 9px;
+}
+.shopItem {
+  border: 2px solid #d4b88a;
+  border-radius: 14px;
+  padding: 10px 8px;
+  background: #fff8ed;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.shopItem .emoji { font-size: 32px; line-height: 1; }
+.shopItem .name  { font-weight: bold; color: #5a3010; margin: 4px 0 2px; font-size: 12px; }
+.shopItem .desc  { font-size: 10px; color: #8a6840; min-height: 24px; line-height: 1.25; }
+.shopItem .priceRow { margin-top: 6px; width: 100%; }
+.shopItem button {
+  width: 100%;
+  padding: 5px;
+  border-radius: 12px;
+  border: none;
+  background: #c89058;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+}
+.shopItem button:hover:not(:disabled) { background: #a06820; }
+.shopItem button:disabled              { background: #bbb; cursor: not-allowed; }
+.shopItem.owned     { background: #e8f4d8; border-color: #a8c878; }
+.shopItem.equipped  { background: #ffe8a8; border-color: #d8a020; }
+
+.closeBtn {
+  float: right;
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: #6b4420;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+/* ---------- First-run welcome overlay ---------- */
+
+#firstRunOverlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(40, 20, 10, 0.6);
+  z-index: 18;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  /* Brief fade-in so the panel doesn't slam in instantly. */
+  animation: frFade 0.25s ease;
+}
+#firstRunOverlay.show { display: flex; }
+@keyframes frFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.firstRunBox {
+  background: #faf4ec;
+  border-radius: 18px;
+  padding: 18px 24px 20px;
+  max-width: 340px;
+  border: 3px solid #c89058;
+  text-align: center;
+  font-family: inherit;
+  color: #5a3010;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.firstRunBox h3 { margin: 0 0 8px; font-family: Georgia, serif; font-size: 19px; }
+.firstRunBox p  { margin: 0 0 8px; font-size: 12px; color: #8a6840; }
+.firstRunBox ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 14px;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.firstRunBox li {
+  padding: 2px 4px;
+  border-radius: 8px;
+  /* subtle striping by hover (decorative — these aren't interactive items) */
+}
+.firstRunBox button {
+  background: #c89058;
+  color: #fff;
+  border: none;
+  padding: 8px 22px;
+  border-radius: 14px;
+  font-family: inherit;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 13px;
+}
+.firstRunBox button:hover { background: #a06820; }
+
+/* Hover tooltip. Anchored at (left, top) which we set to the cursor position
+   in canvas-logical pixels (converted to CSS pixels in tooltips.js); the
+   transform shifts the box up and centers it horizontally above the cursor.
+   The ::after pseudo draws the little arrow pointing down at the target. */
+#tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(60, 35, 15, 0.92);
+  color: #fff;
+  font-size: 11px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  white-space: nowrap;
+  z-index: 12;
+  display: none;
+  transform: translate(-50%, calc(-100% - 12px));
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+  font-family: inherit;
+  max-width: 240px;
+}
+#tooltip.show { display: block; }
+#tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(60, 35, 15, 0.92);
+}
+
+/* Reduced-motion preference: replace large translations with simple fades,
+   and stop the coin-pop scale bounce. We can't disable the canvas-side
+   particle animations from CSS — those are gated in ambient.js — but we
+   can soften the DOM-driven ones so the experience is calmer end-to-end. */
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: toastFadeIn 0.25s ease, toastFadeOut 0.5s ease 3.5s;
+    animation-fill-mode: both;
+  }
+  @keyframes toastFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes toastFadeOut { from { opacity: 1; } to { opacity: 0; } }
+  #coinBadge .pop { animation: none; }
+  #firstRunOverlay { animation: none; }
+}
+
+/* Day/night tint layer. mix-blend-mode:multiply lets the underlying canvas
+   show through while the colored fill darkens it for dusk/night. */
+#sleepOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+  transition: background 1s;
+  mix-blend-mode: multiply;
+}
+
+/* ---------- Achievement toast stack ---------- */
+
+/* Stack hangs just below the HUD strip and grows downward when multiple
+   unlocks land in quick succession. pointer-events:none so it never blocks
+   clicks on whatever's underneath. */
+#toastStack {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.toast {
+  background: linear-gradient(135deg, #ffe080, #f0a040);
+  border: 2px solid #a06820;
+  border-radius: 14px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 6px 18px rgba(80, 50, 20, 0.32);
+  color: #4a2008;
+  font-family: inherit;
+  min-width: 240px;
+  /* Three keyframes: slide in, hold, fade out — total ~4s. */
+  animation: toastIn 0.35s ease, toastOut 0.5s ease 3.5s;
+  animation-fill-mode: both;
+}
+.toast .toastIcon { font-size: 28px; line-height: 1; }
+.toast .toastInfo { display: flex; flex-direction: column; line-height: 1.15; }
+.toast .toastName { font-weight: bold; font-size: 13px; }
+.toast .toastSub  { font-size: 11px; opacity: 0.85; }
+
+@keyframes toastIn {
+  0%   { transform: translateY(-30px); opacity: 0; }
+  100% { transform: translateY(0);     opacity: 1; }
+}
+@keyframes toastOut {
+  0%   { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-12px); }
+}
+
+/* Small red dot on the achievements button when something has unlocked
+   since the player last opened the modal. The pseudo-element saves us a
+   span in the markup. */
+#achBtn.hasNew {
+  position: relative;
+}
+#achBtn.hasNew::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e02850;
+  border: 2px solid #faf4ec;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+/* ---------- Help / How-to-Play modal ---------- */
+
+#helpModal {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(40, 20, 10, 0.55);
+  z-index: 23;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+#helpModal.show { display: flex; }
+
+.helpBox {
+  background: #faf4ec;
+  border-radius: 18px;
+  padding: 16px 22px 20px;
+  max-width: 540px;
+  width: 100%;
+  max-height: 92%;
+  overflow: auto;
+  border: 3px solid #c89058;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  font-family: inherit;
+  color: #4a2e10;
+}
+.helpBox h2 { margin: 0 0 4px; color: #5a3010; font-family: Georgia, serif; font-size: 20px; }
+.helpBox h3 { margin: 12px 0 4px; color: #6a3e10; font-size: 13px; font-family: Georgia, serif; }
+.helpBox section { margin-bottom: 4px; }
+.helpBox ul {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #5a3818;
+}
+/* Two-column compact layout for the keyboard map. */
+.helpBox ul.keymap {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  list-style: none;
+  padding-left: 0;
+  gap: 4px 12px;
+}
+.helpBox kbd {
+  display: inline-block;
+  background: #f4e8d8;
+  border: 1px solid #c89058;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: #4a2e10;
+  margin-right: 6px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* The reset-save row is visually walled off so the button isn't an
+   accidental click target when scrolling through help. Border + colour
+   shift signal "this is the destructive area". */
+.helpDanger {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1.5px dashed #d4b88a;
+  text-align: center;
+}
+.helpDanger button {
+  padding: 6px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #d04030;
+  background: #fff8ed;
+  color: #c02020;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: bold;
+}
+.helpDanger button:hover { background: #ffe8e0; }
+
+/* ---------- Stats modal ---------- */
+
+#statsModal {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(40, 20, 10, 0.55);
+  z-index: 22;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+#statsModal.show { display: flex; }
+
+.statsBox {
+  background: #faf4ec;
+  border-radius: 18px;
+  padding: 16px 20px 20px;
+  max-width: 520px;
+  width: 100%;
+  max-height: 92%;
+  overflow: auto;
+  border: 3px solid #c89058;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+.statsBox h2 { margin: 0 0 4px; color: #5a3010; font-family: Georgia, serif; font-size: 20px; }
+.statsBox .sub { color: #9a7050; font-size: 11px; margin-bottom: 12px; }
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 9px;
+}
+.statCard {
+  border: 2px solid #d4b88a;
+  border-radius: 14px;
+  padding: 10px 8px;
+  background: #fff8ed;
+  text-align: center;
+}
+.statCard .statIcon  { font-size: 24px; line-height: 1; margin-bottom: 4px; }
+.statCard .statLabel { font-size: 10px; color: #8a6840; line-height: 1.2; min-height: 24px; }
+.statCard .statValue {
+  font-size: 18px;
+  font-weight: bold;
+  color: #5a3010;
+  margin-top: 4px;
+  font-family: Georgia, serif;
+}
+
+/* Save export/import row at the bottom of the stats panel. */
+.statsActions {
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.statsActions button {
+  padding: 6px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #c89058;
+  background: #fff8ed;
+  color: #5a3010;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: bold;
+}
+.statsActions button:hover { background: #ffe8c8; }
+
+/* ---------- Achievements modal ---------- */
+
+#achModal {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(40, 20, 10, 0.55);
+  z-index: 22;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+#achModal.show { display: flex; }
+
+.achModalBox {
+  background: #faf4ec;
+  border-radius: 18px;
+  padding: 16px 20px 20px;
+  max-width: 560px;
+  width: 100%;
+  max-height: 92%;
+  overflow: auto;
+  border: 3px solid #c89058;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+.achModalBox h2 { margin: 0 0 4px; color: #5a3010; font-family: Georgia, serif; font-size: 20px; }
+.achModalBox .sub { color: #9a7050; font-size: 11px; margin-bottom: 12px; }
+
+.achGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 9px;
+}
+.achCard {
+  border: 2px solid #d4b88a;
+  border-radius: 14px;
+  padding: 10px 8px;
+  background: #fff8ed;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Locked cards are intentionally desaturated — players can see what's
+     possible without it competing visually with the items they've earned. */
+  filter: grayscale(0.9);
+  opacity: 0.6;
+  transition: filter 0.3s, opacity 0.3s;
+}
+.achCard.got {
+  filter: none;
+  opacity: 1;
+  background: linear-gradient(135deg, #fff4d6, #ffe89a);
+  border-color: #d8a020;
+}
+.achCard .achIcon    { font-size: 28px; line-height: 1; margin-bottom: 4px; }
+.achCard .achName    { font-weight: bold; color: #5a3010; font-size: 12px; margin-bottom: 2px; }
+.achCard .achDesc    { font-size: 10px; color: #8a6840; min-height: 26px; line-height: 1.25; }
+.achCard .achProgress {
+  font-size: 10px;
+  color: #6a4a20;
+  margin-top: 4px;
+  background: rgba(160, 110, 40, 0.12);
+  padding: 1px 8px;
+  border-radius: 10px;
+}
+.achCard .achReward { font-size: 11px; color: #a06010; font-weight: bold; margin-top: 6px; }
