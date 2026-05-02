@@ -1064,7 +1064,7 @@ var ACHIEVEMENT_DEFS = [
   { id: "hatTrick", icon: "\uD83C\uDFA9", name: "Hat Trick", desc: "Own all three costumes.", reward: 50, custom: "allCosmetics" },
   { id: "foodCritic", icon: "\uD83D\uDC68‍\uD83C\uDF73", name: "Food Critic", desc: "Try every treat type.", reward: 50, custom: "foodCritic" },
   { id: "rich", icon: "\uD83D\uDCB0", name: "Rich Rodent", desc: "Hold 200 coins at once.", reward: 30, custom: "rich" },
-  { id: "maxStats", icon: "\uD83C\uDF1F", name: "Hamster Whisperer", desc: "Max all five stats at once.", reward: 100, custom: "maxStats" },
+  { id: "maxStats", icon: "\uD83C\uDF1F", name: "Hamster Whisperer", desc: "Get all five stats above 85.", reward: 100, custom: "maxStats" },
   { id: "dayNight", icon: "\uD83C\uDF17", name: "Day & Night", desc: "See both day and night.", reward: 15, custom: "dayNight" },
   { id: "treatRain", icon: "\uD83C\uDF27️", name: "Storm Catcher", desc: "Play a Treat Rain round.", reward: 10, trigger: "treatRain" },
   { id: "treatStorm", icon: "⚡", name: "Eye of the Storm", desc: "Catch 25+ treats in one round.", reward: 60, trigger: "treatStorm" },
@@ -2991,7 +2991,7 @@ function passesCustom(def) {
       return save.coins >= 200;
     case "maxStats": {
       const s = save.stats;
-      return s.hunger >= 99 && s.thirst >= 99 && s.energy >= 99 && s.happy >= 99 && s.clean >= 99;
+      return s.hunger >= 85 && s.thirst >= 85 && s.energy >= 85 && s.happy >= 85 && s.clean >= 85;
     }
     case "foodCritic": {
       const allTreats = SHOP_ITEMS.treats.map((t) => t.id);

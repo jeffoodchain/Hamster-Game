@@ -102,8 +102,15 @@ function passesCustom(def) {
   switch (def.custom) {
     case 'rich':         return save.coins >= 200;
     case 'maxStats': {
+      // Originally required all stats ≥ 99, but with the current decay
+      // rates (~0.3-0.4 per second per stat) the slowest action — a
+      // 10-20 second nap — meant earlier-filled stats had already
+      // slipped below 99 by the time the last one filled. Lowering the
+      // bar to 85 keeps the achievement meaningful (player still has to
+      // actively care for everything within a window) while making it
+      // attainable through normal good play.
       const s = save.stats;
-      return s.hunger >= 99 && s.thirst >= 99 && s.energy >= 99 && s.happy >= 99 && s.clean >= 99;
+      return s.hunger >= 85 && s.thirst >= 85 && s.energy >= 85 && s.happy >= 85 && s.clean >= 85;
     }
     case 'foodCritic': {
       const allTreats = SHOP_ITEMS.treats.map(t => t.id);

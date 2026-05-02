@@ -222,7 +222,7 @@ export const ACHIEVEMENT_DEFS = [
   { id: 'hatTrick',     icon: '🎩', name: 'Hat Trick',          desc: 'Own all three costumes.',            reward: 50, custom: 'allCosmetics' },
   { id: 'foodCritic',   icon: '👨‍🍳', name: 'Food Critic',         desc: 'Try every treat type.',              reward: 50, custom: 'foodCritic' },
   { id: 'rich',         icon: '💰', name: 'Rich Rodent',        desc: 'Hold 200 coins at once.',            reward: 30, custom: 'rich' },
-  { id: 'maxStats',     icon: '🌟', name: 'Hamster Whisperer',  desc: 'Max all five stats at once.',        reward:100, custom: 'maxStats' },
+  { id: 'maxStats',     icon: '🌟', name: 'Hamster Whisperer',  desc: 'Get all five stats above 85.',         reward:100, custom: 'maxStats' },
   { id: 'dayNight',     icon: '🌗', name: 'Day & Night',        desc: 'See both day and night.',            reward: 15, custom: 'dayNight' },
 
   // Treat Rain mini-game
