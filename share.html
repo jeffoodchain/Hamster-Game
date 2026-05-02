@@ -667,6 +667,46 @@
 .achModalBox h2 { margin: 0 0 4px; color: #5a3010; font-family: Georgia, serif; font-size: 20px; }
 .achModalBox .sub { color: #9a7050; font-size: 11px; margin-bottom: 12px; }
 
+/* Filter / search controls row — sits between the subtitle and the
+   list. Filter tabs on the left, search input takes the remaining width. */
+.achControls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.achFilters { display: flex; gap: 4px; }
+.achFilter {
+  padding: 4px 12px;
+  border-radius: 12px;
+  border: 1.5px solid #d4b88a;
+  background: #fff8ed;
+  color: #7a5028;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.achFilter.active {
+  background: #c89058;
+  color: #fff;
+  border-color: #a06820;
+  font-weight: bold;
+}
+.achSearch {
+  flex: 1;
+  min-width: 120px;
+  padding: 5px 10px;
+  border-radius: 12px;
+  border: 1.5px solid #d4b88a;
+  background: #fff8ed;
+  color: #4a2e10;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+.achSearch:focus { border-color: #c89058; }
+
 /* Compact single-column list view — many more entries fit per page than
    the old card grid, which matters when there are 10,000+ tasks. */
 .achGrid {
@@ -908,6 +948,14 @@
         <button class="closeBtn" id="closeAch">✕</button>
         <h2>🏆 Achievements</h2>
         <div class="sub" id="achSubtitle">Unlocked: 0 / 22</div>
+        <div class="achControls">
+          <div class="achFilters">
+            <button class="achFilter active" data-filter="all">All</button>
+            <button class="achFilter"        data-filter="progress">In progress</button>
+            <button class="achFilter"        data-filter="done">Done</button>
+          </div>
+          <input type="text" class="achSearch" id="achSearch" placeholder="🔍 Search…" />
+        </div>
         <div class="achGrid" id="achGrid"></div>
       </div>
     </div>
@@ -1144,6 +1192,22 @@ var ACHIEVEMENT_DEFS = [
     const h = n / 3600;
     return h >= 1 ? `Play for ${h} hour${h === 1 ? "" : "s"} total.` : `Play for ${Math.round(n / 60)} minutes total.`;
   } }),
+  { id: "comboCarer", icon: "\uD83C\uDF08", name: "Caring Hand", desc: "All five stats above 70 at once.", reward: 60, custom: "combo_carer" },
+  { id: "comboHoarder", icon: "\uD83D\uDCE6", name: "Hoarder", desc: "Own 10+ different items / themes.", reward: 80, custom: "combo_hoarder" },
+  { id: "comboHardWorker", icon: "\uD83D\uDCAA", name: "Hard Worker", desc: "Wheel runs ≥100 AND messes ≥100.", reward: 100, custom: "combo_hardWorker" },
+  { id: "comboSpaLover", icon: "✨", name: "Spa Lover", desc: "Baths ≥10 AND clean stat ≥95.", reward: 60, custom: "combo_spa" },
+  { id: "comboBigSpender", icon: "\uD83D\uDCB3", name: "High Roller", desc: "Spend 1000+ AND earn 2000+ coins.", reward: 100, custom: "combo_highRoller" },
+  { id: "comboSocialite", icon: "\uD83E\uDD70", name: "Socialite", desc: "5+ visits, plus pet AND feed a friend.", reward: 80, custom: "combo_socialite" },
+  { id: "comboMarathon", icon: "⏳", name: "Marathon", desc: "50 wheel runs AND 1+ hour played.", reward: 100, custom: "combo_marathon" },
+  { id: "comboCollector", icon: "\uD83C\uDFAF", name: "Completionist", desc: "Own all toys AND all costumes.", reward: 150, custom: "combo_collector" },
+  { id: "comboGardener", icon: "\uD83C\uDF3F", name: "Garden Host", desc: "Meadow theme + 5 friend visits.", reward: 60, custom: "combo_gardener" },
+  { id: "comboSunChaser", icon: "\uD83C\uDF05", name: "Sun Chaser", desc: "Sunset theme active during day.", reward: 40, custom: "combo_sunChaser" },
+  { id: "comboNightOwl", icon: "\uD83C\uDF0C", name: "Night Owl", desc: "Lavender theme + saw the night.", reward: 40, custom: "combo_nightOwl" },
+  { id: "comboBlossom", icon: "\uD83C\uDF38", name: "Blossom", desc: "Cherry Blossom theme + Food Critic.", reward: 60, custom: "combo_blossom" },
+  { id: "comboRoyalCourt", icon: "\uD83C\uDFF0", name: "Royal Court", desc: "Own crown + wizard hat.", reward: 80, custom: "combo_royalCourt" },
+  { id: "comboFoodie", icon: "\uD83C\uDF71", name: "True Foodie", desc: "50+ treats fed AND tried every type.", reward: 80, custom: "combo_foodie" },
+  { id: "comboCuddleSage", icon: "\uD83E\uDD0D", name: "Cuddle Sage", desc: "Pet 200+ times AND own all costumes.", reward: 100, custom: "combo_cuddleSage" },
+  { id: "comboCleanFreak", icon: "\uD83E\uDDFD", name: "Clean Freak", desc: "Cleaned 100+ AND own the cleaning bot.", reward: 80, custom: "combo_cleanFreak" },
   ...generateMassTiers()
 ];
 function generateMassTiers() {
@@ -1161,7 +1225,7 @@ function generateMassTiers() {
   ];
   const out = [];
   for (const spec of specs) {
-    for (let i = 0;i < 1000; i++) {
+    for (let i = 0;i < 2000; i++) {
       const threshold = spec.baseLevel * (i + 1);
       const reward = Math.min(9999, spec.baseR + Math.floor(threshold * 0.08));
       const ach = {
@@ -3162,6 +3226,44 @@ function passesCustom(def) {
       return Array.isArray(save.treatsTried) && save.treatsTried.includes("cake");
     case "bigSpender":
       return !!save.counters && (save.counters.coinsSpent || 0) >= 500;
+    case "combo_carer":
+      return Object.values(save.stats || {}).every((v) => v >= 70);
+    case "combo_hoarder": {
+      let n = 0;
+      for (const k of Object.keys(save.owned || {}))
+        if (save.owned[k])
+          n++;
+      n += (save.themesOwned || []).length;
+      return n >= 10;
+    }
+    case "combo_hardWorker":
+      return (save.counters?.wheelRuns || 0) >= 100 && (save.counters?.cleaned || 0) >= 100;
+    case "combo_spa":
+      return (save.counters?.baths || 0) >= 10 && (save.stats?.clean || 0) >= 95;
+    case "combo_highRoller":
+      return (save.counters?.coinsSpent || 0) >= 1000 && (save.counters?.coinsEarned || 0) >= 2000;
+    case "combo_socialite":
+      return (save.counters?.visitorsReceived || 0) >= 5 && !!save.achievements?.petVisitor?.unlocked && !!save.achievements?.feedVisitor?.unlocked;
+    case "combo_marathon":
+      return (save.counters?.wheelRuns || 0) >= 50 && (save.counters?.playSeconds || 0) >= 3600;
+    case "combo_collector":
+      return !!save.owned?.ball && !!save.owned?.tunnel && !!save.owned?.ladder && !!save.owned?.bow && !!save.owned?.hat && !!save.owned?.crown;
+    case "combo_gardener":
+      return save.activeTheme === "meadow" && (save.counters?.visitorsReceived || 0) >= 5;
+    case "combo_sunChaser":
+      return save.activeTheme === "sunset" && save.sawDay === true;
+    case "combo_nightOwl":
+      return save.activeTheme === "lavender" && save.sawNight === true;
+    case "combo_blossom":
+      return save.activeTheme === "cherryBlossom" && !!save.achievements?.foodCritic?.unlocked;
+    case "combo_royalCourt":
+      return !!save.owned?.crown && !!save.owned?.wizard;
+    case "combo_foodie":
+      return (save.counters?.treatsFed || 0) >= 50 && !!save.achievements?.foodCritic?.unlocked;
+    case "combo_cuddleSage":
+      return (save.counters?.pets || 0) >= 200 && !!save.owned?.bow && !!save.owned?.hat && !!save.owned?.crown;
+    case "combo_cleanFreak":
+      return (save.counters?.cleaned || 0) >= 100 && !!save.owned?.roomba;
     default: {
       const m = (def.custom || "").match(/^(coinsEarned|coinsSpent|coinsHeld|bestRain|streak|playTime)_(\d+)$/);
       if (!m)
@@ -3233,8 +3335,26 @@ function clearButtonNew() {
 }
 var PAGE_SIZE = 100;
 var _visibleCount = PAGE_SIZE;
+var _filterMode = "all";
+var _searchTerm = "";
 function resetVisibleCount() {
   _visibleCount = PAGE_SIZE;
+}
+function passesFilters(item) {
+  if (_filterMode === "progress") {
+    if (item.got)
+      return false;
+    if (item.def.count && (item.progress || 0) === 0)
+      return false;
+  }
+  if (_filterMode === "done" && !item.got)
+    return false;
+  if (_searchTerm) {
+    const hay = (item.def.name + " " + item.def.desc).toLowerCase();
+    if (!hay.includes(_searchTerm))
+      return false;
+  }
+  return true;
 }
 function renderAchievementsList() {
   const grid = document.getElementById("achGrid");
@@ -3262,7 +3382,8 @@ function renderAchievementsList() {
   for (const item of ordered)
     if (item.got)
       unlockedCount++;
-  const slice = ordered.slice(0, _visibleCount);
+  const filtered = ordered.filter(passesFilters);
+  const slice = filtered.slice(0, _visibleCount);
   for (const { def, got, progress, threshold } of slice) {
     const row = document.createElement("div");
     row.className = "achRow" + (got ? " got" : "");
@@ -3282,7 +3403,7 @@ function renderAchievementsList() {
       </div>`;
     grid.appendChild(row);
   }
-  const remaining = ordered.length - _visibleCount;
+  const remaining = filtered.length - _visibleCount;
   if (remaining > 0) {
     const btn = document.createElement("button");
     btn.className = "achShowMore";
@@ -3293,7 +3414,9 @@ function renderAchievementsList() {
     });
     grid.appendChild(btn);
   }
-  subtitle.textContent = `Unlocked: ${unlockedCount} / ${ACHIEVEMENT_DEFS.length}` + (ordered.length > _visibleCount ? ` · showing top ${_visibleCount}` : "");
+  const filterNote = _filterMode !== "all" || _searchTerm ? ` · ${filtered.length} match` : "";
+  const sliceNote = filtered.length > _visibleCount ? ` · showing top ${_visibleCount}` : "";
+  subtitle.textContent = `Unlocked: ${unlockedCount} / ${ACHIEVEMENT_DEFS.length}${filterNote}${sliceNote}`;
 }
 function openAchievementsModal() {
   const modal = document.getElementById("achModal");
@@ -3301,6 +3424,14 @@ function openAchievementsModal() {
     return;
   ensureSaveShape();
   resetVisibleCount();
+  _filterMode = "all";
+  _searchTerm = "";
+  document.querySelectorAll(".achFilter").forEach((b) => {
+    b.classList.toggle("active", b.dataset.filter === "all");
+  });
+  const search = document.getElementById("achSearch");
+  if (search)
+    search.value = "";
   renderAchievementsList();
   modal.classList.add("show");
   clearButtonNew();
@@ -3327,6 +3458,23 @@ function initAchievements() {
     modal.addEventListener("click", (e) => {
       if (e.target === modal)
         closeAchievementsModal();
+    });
+  }
+  const filterBtns = document.querySelectorAll(".achFilter");
+  filterBtns.forEach((b) => {
+    b.addEventListener("click", () => {
+      _filterMode = b.dataset.filter || "all";
+      filterBtns.forEach((x) => x.classList.toggle("active", x === b));
+      _visibleCount = PAGE_SIZE;
+      renderAchievementsList();
+    });
+  });
+  const search = document.getElementById("achSearch");
+  if (search) {
+    search.addEventListener("input", () => {
+      _searchTerm = (search.value || "").trim().toLowerCase();
+      _visibleCount = PAGE_SIZE;
+      renderAchievementsList();
     });
   }
   checkAll();

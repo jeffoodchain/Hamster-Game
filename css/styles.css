@@ -660,6 +660,46 @@
 .achModalBox h2 { margin: 0 0 4px; color: #5a3010; font-family: Georgia, serif; font-size: 20px; }
 .achModalBox .sub { color: #9a7050; font-size: 11px; margin-bottom: 12px; }
 
+/* Filter / search controls row — sits between the subtitle and the
+   list. Filter tabs on the left, search input takes the remaining width. */
+.achControls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.achFilters { display: flex; gap: 4px; }
+.achFilter {
+  padding: 4px 12px;
+  border-radius: 12px;
+  border: 1.5px solid #d4b88a;
+  background: #fff8ed;
+  color: #7a5028;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.achFilter.active {
+  background: #c89058;
+  color: #fff;
+  border-color: #a06820;
+  font-weight: bold;
+}
+.achSearch {
+  flex: 1;
+  min-width: 120px;
+  padding: 5px 10px;
+  border-radius: 12px;
+  border: 1.5px solid #d4b88a;
+  background: #fff8ed;
+  color: #4a2e10;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+.achSearch:focus { border-color: #c89058; }
+
 /* Compact single-column list view — many more entries fit per page than
    the old card grid, which matters when there are 10,000+ tasks. */
 .achGrid {

@@ -314,7 +314,28 @@ export const ACHIEVEMENT_DEFS = [
     return h >= 1 ? `Play for ${h} hour${h === 1 ? '' : 's'} total.` : `Play for ${Math.round(n/60)} minutes total.`;
   } }),
 
-  // ---- Massive 10×1000 task ladders (=10000 entries) ----
+  // ---- Combo / multi-condition achievements ----
+  // These check multiple state conditions at once, so they're harder
+  // than single-counter tier ladders and add meaningful variety.
+  // Custom check ids start with "combo_" — handled in achievements.js.
+  { id: 'comboCarer',       icon: '🌈', name: 'Caring Hand',     desc: 'All five stats above 70 at once.',     reward:  60, custom: 'combo_carer' },
+  { id: 'comboHoarder',     icon: '📦', name: 'Hoarder',         desc: 'Own 10+ different items / themes.',    reward:  80, custom: 'combo_hoarder' },
+  { id: 'comboHardWorker',  icon: '💪', name: 'Hard Worker',     desc: 'Wheel runs ≥100 AND messes ≥100.',     reward: 100, custom: 'combo_hardWorker' },
+  { id: 'comboSpaLover',    icon: '✨', name: 'Spa Lover',       desc: 'Baths ≥10 AND clean stat ≥95.',         reward:  60, custom: 'combo_spa' },
+  { id: 'comboBigSpender',  icon: '💳', name: 'High Roller',     desc: 'Spend 1000+ AND earn 2000+ coins.',     reward: 100, custom: 'combo_highRoller' },
+  { id: 'comboSocialite',   icon: '🥰', name: 'Socialite',       desc: '5+ visits, plus pet AND feed a friend.', reward:  80, custom: 'combo_socialite' },
+  { id: 'comboMarathon',    icon: '⏳', name: 'Marathon',        desc: '50 wheel runs AND 1+ hour played.',     reward: 100, custom: 'combo_marathon' },
+  { id: 'comboCollector',   icon: '🎯', name: 'Completionist',   desc: 'Own all toys AND all costumes.',        reward: 150, custom: 'combo_collector' },
+  { id: 'comboGardener',    icon: '🌿', name: 'Garden Host',     desc: 'Meadow theme + 5 friend visits.',       reward:  60, custom: 'combo_gardener' },
+  { id: 'comboSunChaser',   icon: '🌅', name: 'Sun Chaser',      desc: 'Sunset theme active during day.',       reward:  40, custom: 'combo_sunChaser' },
+  { id: 'comboNightOwl',    icon: '🌌', name: 'Night Owl',       desc: 'Lavender theme + saw the night.',       reward:  40, custom: 'combo_nightOwl' },
+  { id: 'comboBlossom',     icon: '🌸', name: 'Blossom',         desc: 'Cherry Blossom theme + Food Critic.',    reward:  60, custom: 'combo_blossom' },
+  { id: 'comboRoyalCourt',  icon: '🏰', name: 'Royal Court',     desc: 'Own crown + wizard hat.',               reward:  80, custom: 'combo_royalCourt' },
+  { id: 'comboFoodie',      icon: '🍱', name: 'True Foodie',     desc: '50+ treats fed AND tried every type.',  reward:  80, custom: 'combo_foodie' },
+  { id: 'comboCuddleSage',  icon: '🤍', name: 'Cuddle Sage',     desc: 'Pet 200+ times AND own all costumes.',  reward: 100, custom: 'combo_cuddleSage' },
+  { id: 'comboCleanFreak',  icon: '🧽', name: 'Clean Freak',     desc: 'Cleaned 100+ AND own the cleaning bot.', reward:  80, custom: 'combo_cleanFreak' },
+
+  // ---- Massive 10×2000 task ladders (=20,000 entries) ----
   // Linear-threshold ladders: 1000 tiers each across 10 counter categories.
   // Most thresholds are unreachable in normal play (and that's fine — the
   // user explicitly asked for 10000 tasks). The achievements modal
@@ -343,7 +364,8 @@ function generateMassTiers() {
   ];
   const out = [];
   for (const spec of specs) {
-    for (let i = 0; i < 1000; i++) {
+    // 2000 tiers per category × 10 categories = 20,000 mass entries.
+    for (let i = 0; i < 2000; i++) {
       const threshold = spec.baseLevel * (i + 1);
       const reward = Math.min(9999, spec.baseR + Math.floor(threshold * 0.08));
       const ach = {

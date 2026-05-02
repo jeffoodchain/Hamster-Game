@@ -124,6 +124,36 @@ function passesCustom(def) {
     case 'dayNight':      return save.sawDay && save.sawNight;
     case 'sweetTooth':    return Array.isArray(save.treatsTried) && save.treatsTried.includes('cake');
     case 'bigSpender':    return !!save.counters && (save.counters.coinsSpent || 0) >= 500;
+
+    // ---- Combo / multi-condition checks ----
+    case 'combo_carer':       return Object.values(save.stats || {}).every(v => v >= 70);
+    case 'combo_hoarder': {
+      let n = 0;
+      for (const k of Object.keys(save.owned || {})) if (save.owned[k]) n++;
+      n += (save.themesOwned || []).length;
+      return n >= 10;
+    }
+    case 'combo_hardWorker':  return ((save.counters?.wheelRuns) || 0) >= 100 && ((save.counters?.cleaned) || 0) >= 100;
+    case 'combo_spa':         return ((save.counters?.baths) || 0) >= 10 && (save.stats?.clean || 0) >= 95;
+    case 'combo_highRoller':  return ((save.counters?.coinsSpent) || 0) >= 1000 && ((save.counters?.coinsEarned) || 0) >= 2000;
+    case 'combo_socialite':   return ((save.counters?.visitorsReceived) || 0) >= 5 &&
+                                     !!(save.achievements?.petVisitor?.unlocked) &&
+                                     !!(save.achievements?.feedVisitor?.unlocked);
+    case 'combo_marathon':    return ((save.counters?.wheelRuns) || 0) >= 50 && ((save.counters?.playSeconds) || 0) >= 3600;
+    case 'combo_collector':   return !!save.owned?.ball && !!save.owned?.tunnel && !!save.owned?.ladder &&
+                                     !!save.owned?.bow && !!save.owned?.hat && !!save.owned?.crown;
+    case 'combo_gardener':    return save.activeTheme === 'meadow' && ((save.counters?.visitorsReceived) || 0) >= 5;
+    case 'combo_sunChaser':   return save.activeTheme === 'sunset' && save.sawDay === true;
+    case 'combo_nightOwl':    return save.activeTheme === 'lavender' && save.sawNight === true;
+    case 'combo_blossom':     return save.activeTheme === 'cherryBlossom' &&
+                                     !!(save.achievements?.foodCritic?.unlocked);
+    case 'combo_royalCourt':  return !!save.owned?.crown && !!save.owned?.wizard;
+    case 'combo_foodie':      return ((save.counters?.treatsFed) || 0) >= 50 &&
+                                     !!(save.achievements?.foodCritic?.unlocked);
+    case 'combo_cuddleSage':  return ((save.counters?.pets) || 0) >= 200 &&
+                                     !!save.owned?.bow && !!save.owned?.hat && !!save.owned?.crown;
+    case 'combo_cleanFreak':  return ((save.counters?.cleaned) || 0) >= 100 && !!save.owned?.roomba;
+
     default: {
       // Generic tier-ladder pattern: "<field>_<threshold>" lets the
       // tier() helper in config.js generate dozens of state-based
@@ -218,9 +248,28 @@ function clearButtonNew() {
 const PAGE_SIZE = 100;
 let _visibleCount = PAGE_SIZE;
 
+// Filter / search state — drive the modal navigation. Reset on each open.
+let _filterMode = 'all';   // 'all' | 'progress' | 'done'
+let _searchTerm = '';
+
 // Reset visible count to the first page whenever the modal opens — saves
 // us from accidentally remembering huge expansion across opens.
 function resetVisibleCount() { _visibleCount = PAGE_SIZE; }
+
+// Apply both filter mode and search term to a row entry. Search is case-
+// insensitive and matches both name and description.
+function passesFilters(item) {
+  if (_filterMode === 'progress') {
+    if (item.got) return false;
+    if (item.def.count && (item.progress || 0) === 0) return false;
+  }
+  if (_filterMode === 'done' && !item.got) return false;
+  if (_searchTerm) {
+    const hay = (item.def.name + ' ' + item.def.desc).toLowerCase();
+    if (!hay.includes(_searchTerm)) return false;
+  }
+  return true;
+}
 
 function renderAchievementsList() {
   const grid = document.getElementById('achGrid');
@@ -252,11 +301,16 @@ function renderAchievementsList() {
   let unlockedCount = 0;
   for (const item of ordered) if (item.got) unlockedCount++;
 
+  // Apply filter tab + search box BEFORE pagination. The unlocked count
+  // above is intentionally over the full set — the player should always
+  // see "X / 10090 total" even when they've filtered down to a subset.
+  const filtered = ordered.filter(passesFilters);
+
   // Render only up to `_visibleCount`. Past that, append a Show More
   // button. The list row layout — icon | name+desc stack | right-aligned
   // progress + reward — is much denser than the old card grid, so many
   // more rows fit per page.
-  const slice = ordered.slice(0, _visibleCount);
+  const slice = filtered.slice(0, _visibleCount);
   for (const { def, got, progress, threshold } of slice) {
     const row = document.createElement('div');
     row.className = 'achRow' + (got ? ' got' : '');
@@ -277,7 +331,7 @@ function renderAchievementsList() {
     grid.appendChild(row);
   }
 
-  const remaining = ordered.length - _visibleCount;
+  const remaining = filtered.length - _visibleCount;
   if (remaining > 0) {
     const btn = document.createElement('button');
     btn.className = 'achShowMore';
@@ -289,15 +343,32 @@ function renderAchievementsList() {
     grid.appendChild(btn);
   }
 
-  subtitle.textContent = `Unlocked: ${unlockedCount} / ${ACHIEVEMENT_DEFS.length}` +
-    (ordered.length > _visibleCount ? ` · showing top ${_visibleCount}` : '');
+  // Subtitle: total unlocked + (when filtering) how many match.
+  const filterNote = (_filterMode !== 'all' || _searchTerm)
+    ? ` · ${filtered.length} match`
+    : '';
+  const sliceNote = (filtered.length > _visibleCount)
+    ? ` · showing top ${_visibleCount}`
+    : '';
+  subtitle.textContent =
+    `Unlocked: ${unlockedCount} / ${ACHIEVEMENT_DEFS.length}${filterNote}${sliceNote}`;
 }
 
 export function openAchievementsModal() {
   const modal = document.getElementById('achModal');
   if (!modal) return;
   ensureSaveShape();
-  resetVisibleCount(); // re-collapse to the first page on every open
+  // Re-collapse to first page + reset filters on every open so the
+  // player isn't surprised by stale "in progress" / search state.
+  resetVisibleCount();
+  _filterMode = 'all';
+  _searchTerm = '';
+  document.querySelectorAll('.achFilter').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === 'all');
+  });
+  const search = document.getElementById('achSearch');
+  if (search) search.value = '';
+
   renderAchievementsList();
   modal.classList.add('show');
   clearButtonNew();
@@ -326,6 +397,31 @@ export function initAchievements() {
       if (e.target === modal) closeAchievementsModal();
     });
   }
+
+  // Filter tab buttons. Click → switch active tab class + re-render.
+  // Resets the page back to the first 100 since the filtered list
+  // looks different now.
+  const filterBtns = document.querySelectorAll('.achFilter');
+  filterBtns.forEach(b => {
+    b.addEventListener('click', () => {
+      _filterMode = b.dataset.filter || 'all';
+      filterBtns.forEach(x => x.classList.toggle('active', x === b));
+      _visibleCount = PAGE_SIZE;
+      renderAchievementsList();
+    });
+  });
+
+  // Search box — debounce-free; re-render on every keystroke. With ~10k
+  // entries the filter+sort+slice is still well under one frame.
+  const search = document.getElementById('achSearch');
+  if (search) {
+    search.addEventListener('input', () => {
+      _searchTerm = (search.value || '').trim().toLowerCase();
+      _visibleCount = PAGE_SIZE;
+      renderAchievementsList();
+    });
+  }
+
   // Catch anything that's *already* satisfied (e.g. an old save that already
   // has the costume but never got the achievement). Guarantees no goals
   // sit perpetually un-claimable.
