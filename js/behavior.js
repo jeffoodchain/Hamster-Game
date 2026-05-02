@@ -46,7 +46,7 @@ import {
 } from './layout.js';
 import { TREAT_EFFECTS, HAMS, POOP_INTERVAL } from './config.js';
 import { snd } from './audio.js';
-import { spawnHearts, spawnCoinFly } from './particles.js';
+import { spawnHearts, spawnCoinFly, spawnSparkles } from './particles.js';
 import { tickBall, initBasket } from './items.js';
 import { st } from './canvas.js';
 import { persist } from './save.js';

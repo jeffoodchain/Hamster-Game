@@ -2101,7 +2101,7 @@ function spawnHearts(x, y) {
   }
   snd("heart");
 }
-function spawnSparkles2(x, y, n = 6) {
+function spawnSparkles(x, y, n = 6) {
   for (let i = 0;i < n; i++) {
     entities.sparkles.push({
       x: x + (Math.random() - 0.5) * 24,
@@ -2422,7 +2422,7 @@ function drawChewLog() {
     ct.textAlign = "center";
     ct.fillText("crunch!", lx + lw * 0.78, ly - 6 + off);
     if (view.frame % 6 === 0)
-      spawnSparkles2(CHEW_X() + 8, CHEW_Y() - 2, 2);
+      spawnSparkles(CHEW_X() + 8, CHEW_Y() - 2, 2);
   }
 }
 function drawSandBath() {
@@ -3395,7 +3395,7 @@ function tryCatchAt(mx, my) {
     if (Math.hypot(mx - t.x, my - t.y) < 18) {
       t.caught = true;
       score++;
-      spawnSparkles2(t.x, t.y, 4);
+      spawnSparkles(t.x, t.y, 4);
       spawnCoinFly(t.x, t.y, 1);
       snd("eat");
       return true;
@@ -3548,7 +3548,7 @@ function tickVisitor() {
       state2 = "visiting";
       v.tgt = Math.random() * Math.PI * 2;
       v.timer = 80 + Math.random() * 120;
-      spawnSparkles2(v.x, v.y - 10, 5);
+      spawnSparkles(v.x, v.y - 10, 5);
     }
     return;
   }
