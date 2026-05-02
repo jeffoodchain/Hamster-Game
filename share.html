@@ -667,51 +667,60 @@
 .achModalBox h2 { margin: 0 0 4px; color: #5a3010; font-family: Georgia, serif; font-size: 20px; }
 .achModalBox .sub { color: #9a7050; font-size: 11px; margin-bottom: 12px; }
 
+/* Compact single-column list view — many more entries fit per page than
+   the old card grid, which matters when there are 10,000+ tasks. */
 .achGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 9px;
-}
-.achCard {
-  border: 2px solid #d4b88a;
-  border-radius: 14px;
-  padding: 10px 8px;
-  background: #fff8ed;
-  text-align: center;
   display: flex;
   flex-direction: column;
+  gap: 6px;
+}
+
+/* One task row. Three columns: icon | name+desc stack | progress+reward
+   stack. Locked rows are desaturated, completed rows get a gold sheen. */
+.achRow {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
   align-items: center;
-  /* Locked cards are intentionally desaturated — players can see what's
-     possible without it competing visually with the items they've earned. */
-  filter: grayscale(0.9);
-  opacity: 0.6;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1.5px solid #d4b88a;
+  border-radius: 10px;
+  background: #fff8ed;
+  filter: grayscale(0.85);
+  opacity: 0.65;
   transition: filter 0.3s, opacity 0.3s;
 }
-.achCard.got {
+.achRow.got {
   filter: none;
   opacity: 1;
   background: linear-gradient(135deg, #fff4d6, #ffe89a);
   border-color: #d8a020;
 }
-.achCard .achIcon    { font-size: 28px; line-height: 1; margin-bottom: 4px; }
-.achCard .achName    { font-weight: bold; color: #5a3010; font-size: 12px; margin-bottom: 2px; }
-.achCard .achDesc    { font-size: 10px; color: #8a6840; min-height: 26px; line-height: 1.25; }
-.achCard .achProgress {
+.achRow .achIcon { font-size: 24px; line-height: 1; text-align: center; }
+.achRow .achMid  { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.achRow .achName { font-weight: bold; color: #5a3010; font-size: 13px; line-height: 1.15; }
+.achRow .achDesc { font-size: 11px; color: #8a6840; line-height: 1.3; }
+.achRow .achRight {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-end;
+  white-space: nowrap;
+}
+.achRow .achProgress {
   font-size: 10px;
   color: #6a4a20;
-  margin-top: 4px;
   background: rgba(160, 110, 40, 0.12);
   padding: 1px 8px;
   border-radius: 10px;
 }
-.achCard .achReward { font-size: 11px; color: #a06010; font-weight: bold; margin-top: 6px; }
+.achRow .achReward { font-size: 12px; color: #a06010; font-weight: bold; }
 
-/* "Show more" button at the bottom of the achievements grid — spans the
-   full row to read as "load next page" rather than another card. */
+/* "Show more" button at the bottom — full-width, dashed border so it
+   reads as "load next page" rather than another row. */
 .achShowMore {
-  grid-column: 1 / -1;
   padding: 10px 16px;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 2px dashed #c89058;
   background: #fff8ed;
   color: #6a3e10;
@@ -3222,7 +3231,7 @@ function clearButtonNew() {
     btn.classList.remove("hasNew");
   badgeFlagged = false;
 }
-var PAGE_SIZE = 60;
+var PAGE_SIZE = 100;
 var _visibleCount = PAGE_SIZE;
 function resetVisibleCount() {
   _visibleCount = PAGE_SIZE;
@@ -3255,19 +3264,23 @@ function renderAchievementsList() {
       unlockedCount++;
   const slice = ordered.slice(0, _visibleCount);
   for (const { def, got, progress, threshold } of slice) {
-    const card = document.createElement("div");
-    card.className = "achCard" + (got ? " got" : "");
+    const row = document.createElement("div");
+    row.className = "achRow" + (got ? " got" : "");
     let progressHtml = "";
     if (!got && def.count) {
       progressHtml = `<div class="achProgress">${Math.min(progress, threshold)} / ${threshold}</div>`;
     }
-    card.innerHTML = `
+    row.innerHTML = `
       <div class="achIcon">${def.icon}</div>
-      <div class="achName">${def.name}</div>
-      <div class="achDesc">${def.desc}</div>
-      ${progressHtml}
-      <div class="achReward">+${def.reward}\uD83D\uDCB0</div>`;
-    grid.appendChild(card);
+      <div class="achMid">
+        <div class="achName">${def.name}</div>
+        <div class="achDesc">${def.desc}</div>
+      </div>
+      <div class="achRight">
+        ${progressHtml}
+        <div class="achReward">+${def.reward}\uD83D\uDCB0</div>
+      </div>`;
+    grid.appendChild(row);
   }
   const remaining = ordered.length - _visibleCount;
   if (remaining > 0) {

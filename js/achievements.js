@@ -210,10 +210,12 @@ function clearButtonNew() {
   badgeFlagged = false;
 }
 
-// How many cards to render per "page". Rendering 10,000+ DOM nodes is too
-// slow + visually unusable, so the modal shows the most-relevant 60 by
-// default and reveals more in chunks via the Show More button.
-const PAGE_SIZE = 60;
+// How many list rows to render per "page". Rendering 10,000+ DOM nodes
+// is too slow + visually unusable, so the modal shows the most-relevant
+// 100 by default and reveals more in chunks via the Show More button.
+// 100 was chosen because each compact list row is ~50px tall — 100 rows
+// takes a few pages of scrolling, which feels right for a long task list.
+const PAGE_SIZE = 100;
 let _visibleCount = PAGE_SIZE;
 
 // Reset visible count to the first page whenever the modal opens — saves
@@ -251,23 +253,28 @@ function renderAchievementsList() {
   for (const item of ordered) if (item.got) unlockedCount++;
 
   // Render only up to `_visibleCount`. Past that, append a Show More
-  // button. Skipping DOM nodes is what keeps the 10000-entry modal
-  // responsive — a single innerHTML write of 60 cards is fast.
+  // button. The list row layout — icon | name+desc stack | right-aligned
+  // progress + reward — is much denser than the old card grid, so many
+  // more rows fit per page.
   const slice = ordered.slice(0, _visibleCount);
   for (const { def, got, progress, threshold } of slice) {
-    const card = document.createElement('div');
-    card.className = 'achCard' + (got ? ' got' : '');
+    const row = document.createElement('div');
+    row.className = 'achRow' + (got ? ' got' : '');
     let progressHtml = '';
     if (!got && def.count) {
       progressHtml = `<div class="achProgress">${Math.min(progress, threshold)} / ${threshold}</div>`;
     }
-    card.innerHTML = `
+    row.innerHTML = `
       <div class="achIcon">${def.icon}</div>
-      <div class="achName">${def.name}</div>
-      <div class="achDesc">${def.desc}</div>
-      ${progressHtml}
-      <div class="achReward">+${def.reward}💰</div>`;
-    grid.appendChild(card);
+      <div class="achMid">
+        <div class="achName">${def.name}</div>
+        <div class="achDesc">${def.desc}</div>
+      </div>
+      <div class="achRight">
+        ${progressHtml}
+        <div class="achReward">+${def.reward}💰</div>
+      </div>`;
+    grid.appendChild(row);
   }
 
   const remaining = ordered.length - _visibleCount;
