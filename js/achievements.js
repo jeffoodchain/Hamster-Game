@@ -210,6 +210,16 @@ function clearButtonNew() {
   badgeFlagged = false;
 }
 
+// How many cards to render per "page". Rendering 10,000+ DOM nodes is too
+// slow + visually unusable, so the modal shows the most-relevant 60 by
+// default and reveals more in chunks via the Show More button.
+const PAGE_SIZE = 60;
+let _visibleCount = PAGE_SIZE;
+
+// Reset visible count to the first page whenever the modal opens — saves
+// us from accidentally remembering huge expansion across opens.
+function resetVisibleCount() { _visibleCount = PAGE_SIZE; }
+
 function renderAchievementsList() {
   const grid = document.getElementById('achGrid');
   const subtitle = document.getElementById('achSubtitle');
@@ -220,8 +230,8 @@ function renderAchievementsList() {
   //   1. Counter tasks with non-zero progress (closest to done first)
   //   2. Other still-locked tasks
   //   3. Completed tasks last
-  // This makes the modal feel like an active to-do list rather than a
-  // static catalog of distant goals.
+  // With 10000+ entries, this sort is what makes the panel usable —
+  // the visible top page is always the next-actionable goals.
   const ordered = ACHIEVEMENT_DEFS.slice().map(def => {
     const got = isUnlocked(def.id);
     let progress = 0, threshold = 0;
@@ -229,7 +239,6 @@ function renderAchievementsList() {
       progress = (save.counters && save.counters[def.count]) || 0;
       threshold = def.threshold || 1;
     }
-    // Sort key: completed last (highest), in-progress first (lowest by ratio remaining).
     let key;
     if (got) key = 2;
     else if (def.count && progress > 0) key = 0 + (1 - Math.min(progress / threshold, 0.999));
@@ -237,9 +246,15 @@ function renderAchievementsList() {
     return { def, got, progress, threshold, key };
   }).sort((a, b) => a.key - b.key);
 
+  // Count unlocked across the whole set (cheap — no DOM work involved).
   let unlockedCount = 0;
-  for (const { def, got, progress, threshold } of ordered) {
-    if (got) unlockedCount++;
+  for (const item of ordered) if (item.got) unlockedCount++;
+
+  // Render only up to `_visibleCount`. Past that, append a Show More
+  // button. Skipping DOM nodes is what keeps the 10000-entry modal
+  // responsive — a single innerHTML write of 60 cards is fast.
+  const slice = ordered.slice(0, _visibleCount);
+  for (const { def, got, progress, threshold } of slice) {
     const card = document.createElement('div');
     card.className = 'achCard' + (got ? ' got' : '');
     let progressHtml = '';
@@ -254,13 +269,28 @@ function renderAchievementsList() {
       <div class="achReward">+${def.reward}💰</div>`;
     grid.appendChild(card);
   }
-  subtitle.textContent = `Unlocked: ${unlockedCount} / ${ACHIEVEMENT_DEFS.length}`;
+
+  const remaining = ordered.length - _visibleCount;
+  if (remaining > 0) {
+    const btn = document.createElement('button');
+    btn.className = 'achShowMore';
+    btn.textContent = `Show ${Math.min(PAGE_SIZE, remaining)} more (${remaining} hidden)`;
+    btn.addEventListener('click', () => {
+      _visibleCount += PAGE_SIZE;
+      renderAchievementsList();
+    });
+    grid.appendChild(btn);
+  }
+
+  subtitle.textContent = `Unlocked: ${unlockedCount} / ${ACHIEVEMENT_DEFS.length}` +
+    (ordered.length > _visibleCount ? ` · showing top ${_visibleCount}` : '');
 }
 
 export function openAchievementsModal() {
   const modal = document.getElementById('achModal');
   if (!modal) return;
   ensureSaveShape();
+  resetVisibleCount(); // re-collapse to the first page on every open
   renderAchievementsList();
   modal.classList.add('show');
   clearButtonNew();

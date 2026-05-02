@@ -313,4 +313,54 @@ export const ACHIEVEMENT_DEFS = [
     const h = n / 3600;
     return h >= 1 ? `Play for ${h} hour${h === 1 ? '' : 's'} total.` : `Play for ${Math.round(n/60)} minutes total.`;
   } }),
+
+  // ---- Massive 10×1000 task ladders (=10000 entries) ----
+  // Linear-threshold ladders: 1000 tiers each across 10 counter categories.
+  // Most thresholds are unreachable in normal play (and that's fine — the
+  // user explicitly asked for 10000 tasks). The achievements modal
+  // paginates so we never try to render 10000 DOM nodes at once. Rewards
+  // are capped at 9999 to avoid silly inflation; the modal sort keeps the
+  // closest-to-done at the top so the player always has visible next steps.
+  ...generateMassTiers(),
 ];
+
+// Mass tier generator. Runs once at module load and produces 10,000 entries.
+// Implemented separately from the regular tier() helper because (a) the
+// reward formula is different (linear, capped, not exponential) and (b)
+// keeping the spec list compact makes the data easy to read.
+function generateMassTiers() {
+  const specs = [
+    { idP:'mPet_',   label:'Cuddle',  icon:'💕', counter:'pets',             baseLevel:10, baseR:3, desc:n=>`Pet your hamster ${n} times.` },
+    { idP:'mWheel_', label:'Wheel',   icon:'🏃', counter:'wheelRuns',        baseLevel:5,  baseR:5, desc:n=>`Complete ${n} wheel runs.` },
+    { idP:'mClean_', label:'Tidy',    icon:'✨', counter:'cleaned',          baseLevel:5,  baseR:3, desc:n=>`Clean up ${n} messes.` },
+    { idP:'mNap_',   label:'Sleep',   icon:'💤', counter:'naps',             baseLevel:1,  baseR:5, desc:n=>`Take ${n} naps.` },
+    { idP:'mBath_',  label:'Bath',    icon:'🫧', counter:'baths',            baseLevel:1,  baseR:5, desc:n=>`Take ${n} sand baths.` },
+    { idP:'mChew_',  label:'Chew',    icon:'🌳', counter:'chews',            baseLevel:5,  baseR:3, desc:n=>`Chew the log ${n} times.` },
+    { idP:'mPhoto_', label:'Photo',   icon:'🎞️', counter:'photos',           baseLevel:1,  baseR:5, desc:n=>`Take ${n} snapshots.` },
+    { idP:'mTreat_', label:'Foodie',  icon:'🥬', counter:'treatsFed',        baseLevel:1,  baseR:5, desc:n=>`Feed ${n} treats.` },
+    { idP:'mVisit_', label:'Greeter', icon:'🫂', counter:'visitorsReceived', baseLevel:1,  baseR:8, desc:n=>`Receive ${n} friend visits.` },
+    { idP:'mCoin_',  label:'Wealth',  icon:'🪙', custom: 'coinsEarned',      baseLevel:50, baseR:5, desc:n=>`Earn ${n} coins lifetime.` },
+  ];
+  const out = [];
+  for (const spec of specs) {
+    for (let i = 0; i < 1000; i++) {
+      const threshold = spec.baseLevel * (i + 1);
+      const reward = Math.min(9999, spec.baseR + Math.floor(threshold * 0.08));
+      const ach = {
+        id: `${spec.idP}${threshold}`,
+        icon: spec.icon,
+        name: `${spec.label} ${i + 1}`,
+        desc: spec.desc(threshold),
+        reward,
+      };
+      if (spec.custom) {
+        ach.custom = `${spec.custom}_${threshold}`;
+      } else {
+        ach.count = spec.counter;
+        ach.threshold = threshold;
+      }
+      out.push(ach);
+    }
+  }
+  return out;
+}

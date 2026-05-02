@@ -706,6 +706,23 @@
 }
 .achCard .achReward { font-size: 11px; color: #a06010; font-weight: bold; margin-top: 6px; }
 
+/* "Show more" button at the bottom of the achievements grid — spans the
+   full row to read as "load next page" rather than another card. */
+.achShowMore {
+  grid-column: 1 / -1;
+  padding: 10px 16px;
+  border-radius: 14px;
+  border: 2px dashed #c89058;
+  background: #fff8ed;
+  color: #6a3e10;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: bold;
+  margin-top: 6px;
+}
+.achShowMore:hover { background: #ffe8c8; }
+
 </style>
 </head>
 <body>
@@ -1117,8 +1134,45 @@ var ACHIEVEMENT_DEFS = [
   ...tier({ idP: "time_", label: "Dedicated", icon: "⏱️", custom: "playTime", levels: [1800, 7200, 36000, 180000], baseR: 30, desc: (n) => {
     const h = n / 3600;
     return h >= 1 ? `Play for ${h} hour${h === 1 ? "" : "s"} total.` : `Play for ${Math.round(n / 60)} minutes total.`;
-  } })
+  } }),
+  ...generateMassTiers()
 ];
+function generateMassTiers() {
+  const specs = [
+    { idP: "mPet_", label: "Cuddle", icon: "\uD83D\uDC95", counter: "pets", baseLevel: 10, baseR: 3, desc: (n) => `Pet your hamster ${n} times.` },
+    { idP: "mWheel_", label: "Wheel", icon: "\uD83C\uDFC3", counter: "wheelRuns", baseLevel: 5, baseR: 5, desc: (n) => `Complete ${n} wheel runs.` },
+    { idP: "mClean_", label: "Tidy", icon: "✨", counter: "cleaned", baseLevel: 5, baseR: 3, desc: (n) => `Clean up ${n} messes.` },
+    { idP: "mNap_", label: "Sleep", icon: "\uD83D\uDCA4", counter: "naps", baseLevel: 1, baseR: 5, desc: (n) => `Take ${n} naps.` },
+    { idP: "mBath_", label: "Bath", icon: "\uD83E\uDEE7", counter: "baths", baseLevel: 1, baseR: 5, desc: (n) => `Take ${n} sand baths.` },
+    { idP: "mChew_", label: "Chew", icon: "\uD83C\uDF33", counter: "chews", baseLevel: 5, baseR: 3, desc: (n) => `Chew the log ${n} times.` },
+    { idP: "mPhoto_", label: "Photo", icon: "\uD83C\uDF9E️", counter: "photos", baseLevel: 1, baseR: 5, desc: (n) => `Take ${n} snapshots.` },
+    { idP: "mTreat_", label: "Foodie", icon: "\uD83E\uDD6C", counter: "treatsFed", baseLevel: 1, baseR: 5, desc: (n) => `Feed ${n} treats.` },
+    { idP: "mVisit_", label: "Greeter", icon: "\uD83E\uDEC2", counter: "visitorsReceived", baseLevel: 1, baseR: 8, desc: (n) => `Receive ${n} friend visits.` },
+    { idP: "mCoin_", label: "Wealth", icon: "\uD83E\uDE99", custom: "coinsEarned", baseLevel: 50, baseR: 5, desc: (n) => `Earn ${n} coins lifetime.` }
+  ];
+  const out = [];
+  for (const spec of specs) {
+    for (let i = 0;i < 1000; i++) {
+      const threshold = spec.baseLevel * (i + 1);
+      const reward = Math.min(9999, spec.baseR + Math.floor(threshold * 0.08));
+      const ach = {
+        id: `${spec.idP}${threshold}`,
+        icon: spec.icon,
+        name: `${spec.label} ${i + 1}`,
+        desc: spec.desc(threshold),
+        reward
+      };
+      if (spec.custom) {
+        ach.custom = `${spec.custom}_${threshold}`;
+      } else {
+        ach.count = spec.counter;
+        ach.threshold = threshold;
+      }
+      out.push(ach);
+    }
+  }
+  return out;
+}
 
 // js/state.js
 var view = {
@@ -3168,6 +3222,11 @@ function clearButtonNew() {
     btn.classList.remove("hasNew");
   badgeFlagged = false;
 }
+var PAGE_SIZE = 60;
+var _visibleCount = PAGE_SIZE;
+function resetVisibleCount() {
+  _visibleCount = PAGE_SIZE;
+}
 function renderAchievementsList() {
   const grid = document.getElementById("achGrid");
   const subtitle = document.getElementById("achSubtitle");
@@ -3191,9 +3250,11 @@ function renderAchievementsList() {
     return { def, got, progress, threshold, key };
   }).sort((a, b) => a.key - b.key);
   let unlockedCount = 0;
-  for (const { def, got, progress, threshold } of ordered) {
-    if (got)
+  for (const item of ordered)
+    if (item.got)
       unlockedCount++;
+  const slice = ordered.slice(0, _visibleCount);
+  for (const { def, got, progress, threshold } of slice) {
     const card = document.createElement("div");
     card.className = "achCard" + (got ? " got" : "");
     let progressHtml = "";
@@ -3208,13 +3269,25 @@ function renderAchievementsList() {
       <div class="achReward">+${def.reward}\uD83D\uDCB0</div>`;
     grid.appendChild(card);
   }
-  subtitle.textContent = `Unlocked: ${unlockedCount} / ${ACHIEVEMENT_DEFS.length}`;
+  const remaining = ordered.length - _visibleCount;
+  if (remaining > 0) {
+    const btn = document.createElement("button");
+    btn.className = "achShowMore";
+    btn.textContent = `Show ${Math.min(PAGE_SIZE, remaining)} more (${remaining} hidden)`;
+    btn.addEventListener("click", () => {
+      _visibleCount += PAGE_SIZE;
+      renderAchievementsList();
+    });
+    grid.appendChild(btn);
+  }
+  subtitle.textContent = `Unlocked: ${unlockedCount} / ${ACHIEVEMENT_DEFS.length}` + (ordered.length > _visibleCount ? ` · showing top ${_visibleCount}` : "");
 }
 function openAchievementsModal() {
   const modal = document.getElementById("achModal");
   if (!modal)
     return;
   ensureSaveShape();
+  resetVisibleCount();
   renderAchievementsList();
   modal.classList.add("show");
   clearButtonNew();

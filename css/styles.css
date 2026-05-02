@@ -698,3 +698,20 @@
   border-radius: 10px;
 }
 .achCard .achReward { font-size: 11px; color: #a06010; font-weight: bold; margin-top: 6px; }
+
+/* "Show more" button at the bottom of the achievements grid — spans the
+   full row to read as "load next page" rather than another card. */
+.achShowMore {
+  grid-column: 1 / -1;
+  padding: 10px 16px;
+  border-radius: 14px;
+  border: 2px dashed #c89058;
+  background: #fff8ed;
+  color: #6a3e10;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: bold;
+  margin-top: 6px;
+}
+.achShowMore:hover { background: #ffe8c8; }
