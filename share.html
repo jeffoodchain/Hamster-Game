@@ -5046,65 +5046,90 @@ function initFirstRun() {
 }
 
 // js/music.js
-var DAY_CHORDS = [
-  [261.63, 329.63, 392, 523.25],
-  [349.23, 440, 523.25, 698.46],
-  [293.66, 369.99, 440, 587.33]
+var DAY_PROGRESSION = [
+  { bass: 130.81, arp: [261.63, 329.63, 392, 329.63, 392, 523.25] },
+  { bass: 174.61, arp: [349.23, 440, 523.25, 440, 523.25, 698.46] },
+  { bass: 196, arp: [392, 493.88, 587.33, 493.88, 587.33, 783.99] },
+  { bass: 130.81, arp: [261.63, 329.63, 392, 329.63, 523.25, 392] }
 ];
-var NIGHT_CHORDS = [
-  [220, 261.63, 329.63, 440],
-  [196, 246.94, 293.66, 392],
-  [174.61, 220, 261.63, 349.23]
+var NIGHT_PROGRESSION = [
+  { bass: 110, arp: [220, 261.63, 329.63, 261.63, 329.63, 440] },
+  { bass: 174.61, arp: [349.23, 440, 523.25, 440, 523.25, 698.46] },
+  { bass: 130.81, arp: [261.63, 329.63, 392, 329.63, 392, 523.25] },
+  { bass: 196, arp: [392, 493.88, 587.33, 493.88, 587.33, 783.99] }
 ];
+var SIXTEENTH_SEC = 60 / 108 / 4;
+var STEPS_PER_BAR = 16;
 var masterGain = null;
-var dayPad = null;
-var nightPad = null;
+var bedGain = null;
 var initialized = false;
-var lastChordFrame = 0;
-var dayIdx = 0;
-var nightIdx = 0;
-function makePad(ctx, freqs, filterCutoff, lfoRate) {
-  const padOut = ctx.createGain();
-  padOut.gain.value = 0;
+var nextNoteAt = 0;
+var stepIdx = 0;
+var chordIdx = 0;
+var bedFilter = null;
+var bedOsc1 = null;
+var bedOsc2 = null;
+function pluck(ctx, freq, when, level = 0.18, duration = 0.28) {
+  const osc = ctx.createOscillator();
+  osc.type = "square";
+  osc.frequency.setValueAtTime(freq, when);
   const filter = ctx.createBiquadFilter();
   filter.type = "lowpass";
-  filter.frequency.value = filterCutoff;
-  filter.Q.value = 1.2;
-  filter.connect(padOut);
-  const oscs = freqs.map((f, i) => {
-    const osc = ctx.createOscillator();
-    osc.type = i === 0 ? "triangle" : "sine";
-    osc.frequency.value = f;
-    osc.detune.value = (Math.random() - 0.5) * 12;
-    const oscG = ctx.createGain();
-    oscG.gain.value = (i === 0 ? 0.42 : 0.22) / freqs.length;
-    osc.connect(oscG);
-    oscG.connect(filter);
-    osc.start();
-    return { osc, gain: oscG };
-  });
-  const lfo = ctx.createOscillator();
-  lfo.type = "sine";
-  lfo.frequency.value = lfoRate;
-  const lfoDepth = ctx.createGain();
-  lfoDepth.gain.value = filterCutoff * 0.35;
-  lfo.connect(lfoDepth);
-  lfoDepth.connect(filter.frequency);
-  lfo.start();
-  return { padOut, oscs };
+  filter.frequency.setValueAtTime(2400, when);
+  filter.Q.value = 0.7;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.0001, when);
+  gain.gain.exponentialRampToValueAtTime(level, when + 0.005);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + duration);
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(masterGain);
+  osc.start(when);
+  osc.stop(when + duration + 0.05);
 }
-function setChord(pad, chord) {
-  if (!pad)
-    return;
-  const ctx = getAudioContext();
-  if (!ctx)
+function bassNote(ctx, freq, when, duration = 0.45) {
+  const osc = ctx.createOscillator();
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(freq, when);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.0001, when);
+  gain.gain.exponentialRampToValueAtTime(0.18, when + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + duration);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(when);
+  osc.stop(when + duration + 0.05);
+}
+function buildBed(ctx) {
+  bedFilter = ctx.createBiquadFilter();
+  bedFilter.type = "lowpass";
+  bedFilter.frequency.value = 1100;
+  bedFilter.Q.value = 0.6;
+  bedGain = ctx.createGain();
+  bedGain.gain.value = 0.04;
+  bedFilter.connect(bedGain);
+  bedGain.connect(masterGain);
+  bedOsc1 = ctx.createOscillator();
+  bedOsc2 = ctx.createOscillator();
+  bedOsc1.type = "sine";
+  bedOsc2.type = "sine";
+  bedOsc1.frequency.value = 261.63;
+  bedOsc2.frequency.value = 392;
+  bedOsc1.detune.value = -6;
+  bedOsc2.detune.value = 6;
+  bedOsc1.connect(bedFilter);
+  bedOsc2.connect(bedFilter);
+  bedOsc1.start();
+  bedOsc2.start();
+}
+function setBedChord(ctx, chord) {
+  if (!bedOsc1 || !bedOsc2)
     return;
   const t = ctx.currentTime;
-  pad.oscs.forEach((entry, i) => {
-    const target = chord[i] !== undefined ? chord[i] : chord[chord.length - 1];
-    entry.osc.frequency.cancelScheduledValues(t);
-    entry.osc.frequency.linearRampToValueAtTime(target, t + 2);
-  });
+  bedOsc1.frequency.cancelScheduledValues(t);
+  bedOsc2.frequency.cancelScheduledValues(t);
+  bedOsc1.frequency.linearRampToValueAtTime(chord.arp[0], t + 0.4);
+  bedOsc2.frequency.linearRampToValueAtTime(chord.arp[2], t + 0.4);
 }
 function tryInit() {
   if (initialized)
@@ -5115,49 +5140,48 @@ function tryInit() {
   masterGain = ctx.createGain();
   masterGain.gain.value = 0;
   masterGain.connect(ctx.destination);
-  dayPad = makePad(ctx, DAY_CHORDS[0], 1500, 0.06);
-  nightPad = makePad(ctx, NIGHT_CHORDS[0], 700, 0.035);
-  dayPad.padOut.connect(masterGain);
-  nightPad.padOut.connect(masterGain);
-  masterGain.gain.linearRampToValueAtTime(0.07, ctx.currentTime + 3);
+  buildBed(ctx);
+  masterGain.gain.linearRampToValueAtTime(0.65, ctx.currentTime + 2);
+  nextNoteAt = ctx.currentTime + 0.1;
   initialized = true;
   return true;
 }
+function activeProgression() {
+  const t = view.dayTime;
+  return t < 0.2 || t >= 0.78 ? NIGHT_PROGRESSION : DAY_PROGRESSION;
+}
 function updateMusic() {
-  if (view.gameScreen !== "game")
-    return;
   if (!tryInit())
     return;
   const ctx = getAudioContext();
-  const t = ctx.currentTime;
-  const dt = view.dayTime;
-  let dayWeight, nightWeight;
-  if (dt < 0.2) {
-    const k = dt / 0.2;
-    dayWeight = k;
-    nightWeight = 1 - k;
-  } else if (dt < 0.55) {
-    dayWeight = 1;
-    nightWeight = 0;
-  } else if (dt < 0.78) {
-    const k = (dt - 0.55) / 0.23;
-    dayWeight = 1 - k;
-    nightWeight = k;
-  } else {
-    dayWeight = 0;
-    nightWeight = 1;
-  }
-  const muteFactor = save.muted ? 0 : 1;
-  dayPad.padOut.gain.cancelScheduledValues(t);
-  nightPad.padOut.gain.cancelScheduledValues(t);
-  dayPad.padOut.gain.linearRampToValueAtTime(dayWeight * muteFactor, t + 0.6);
-  nightPad.padOut.gain.linearRampToValueAtTime(nightWeight * muteFactor, t + 0.6);
-  if (view.frame - lastChordFrame >= 720) {
-    lastChordFrame = view.frame;
-    dayIdx = (dayIdx + 1) % DAY_CHORDS.length;
-    nightIdx = (nightIdx + 1) % NIGHT_CHORDS.length;
-    setChord(dayPad, DAY_CHORDS[dayIdx]);
-    setChord(nightPad, NIGHT_CHORDS[nightIdx]);
+  if (!ctx)
+    return;
+  const now = ctx.currentTime;
+  const inGame = view.gameScreen === "game" && !save.muted;
+  masterGain.gain.cancelScheduledValues(now);
+  masterGain.gain.linearRampToValueAtTime(inGame ? 0.55 : 0, now + 0.3);
+  if (!inGame)
+    return;
+  const lookahead = 0.45;
+  const prog = activeProgression();
+  while (nextNoteAt < now + lookahead) {
+    const chord = prog[chordIdx % prog.length];
+    if (stepIdx === 0) {
+      bassNote(ctx, chord.bass, nextNoteAt);
+      setBedChord(ctx, chord);
+    }
+    if (stepIdx < chord.arp.length * 2) {
+      if (stepIdx % 2 === 0) {
+        const noteIdx = stepIdx / 2;
+        pluck(ctx, chord.arp[noteIdx], nextNoteAt);
+      }
+    }
+    nextNoteAt += SIXTEENTH_SEC;
+    stepIdx++;
+    if (stepIdx >= STEPS_PER_BAR) {
+      stepIdx = 0;
+      chordIdx++;
+    }
   }
   maybeDrip();
 }
@@ -5168,10 +5192,8 @@ function fadeOutMusic() {
   if (!ctx)
     return;
   const t = ctx.currentTime;
-  dayPad.padOut.gain.cancelScheduledValues(t);
-  nightPad.padOut.gain.cancelScheduledValues(t);
-  dayPad.padOut.gain.linearRampToValueAtTime(0, t + 0.8);
-  nightPad.padOut.gain.linearRampToValueAtTime(0, t + 0.8);
+  masterGain.gain.cancelScheduledValues(t);
+  masterGain.gain.linearRampToValueAtTime(0, t + 0.6);
 }
 var nextDripFrame = 600 + Math.floor(Math.random() * 1800);
 function maybeDrip() {
