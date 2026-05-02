@@ -918,7 +918,7 @@ var SHOP_ITEMS = {
     { id: "ball", emoji: "\uD83D\uDD34", name: "Bouncy Ball", desc: "Hamster will play with it.", price: 30, type: "toy" },
     { id: "tunnel", emoji: "\uD83D\uDFE6", name: "Crawl Tunnel", desc: "Decorative tube on floor.", price: 60, type: "toy" },
     { id: "ladder", emoji: "\uD83E\uDE9C", name: "Climbing Ladder", desc: "Hamster climbs, perches, and slides!", price: 80, type: "toy" },
-    { id: "roomba", emoji: "\uD83E\uDD16", name: "掃地機器人", desc: "Auto-cleans poops & shells. No coin reward.", price: 120, type: "toy" }
+    { id: "roomba", emoji: "\uD83E\uDD16", name: "掃地機器人", desc: "Auto-cleans poops & shells (+1\uD83D\uDCB0 each).", price: 120, type: "toy" }
   ],
   treats: [
     { id: "carrot", emoji: "\uD83E\uDD55", name: "Carrot", desc: "+30 hunger, +15 happy", price: 8, type: "treat" },
@@ -3712,13 +3712,17 @@ function clean(item, kind) {
     entities.shells.splice(idx, 1);
     save.stats.clean = Math.min(100, save.stats.clean + 2);
   }
+  save.coins += 1;
+  bumpStat("coinsEarned", 1);
+  spawnCoinFly(x, y - 8, 1);
   entities.binCount = (entities.binCount || 0) + 1;
   bumpCounter("cleaned");
   spawnSparkles(x, y - 4, 5);
   spinT = SPIN_FRAMES;
   cooldown = COOLDOWN_FRAMES2;
   target = null;
-  snd("click");
+  snd("coin");
+  persist();
 }
 function tickRoomba() {
   const wasActive = active;

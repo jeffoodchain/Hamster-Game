@@ -5,13 +5,10 @@
  * (toys tab), wanders the cage floor and auto-cleans poops + shells it
  * gets close to.
  *
- * Trade-off vs. manual cleaning:
- *   - Roomba does NOT award coins per clean (the convenience IS the cost
- *     of the 120-coin one-time purchase). This keeps manual cleaning
- *     meaningful for coin income.
- *   - It DOES bump the `cleaned` counter, so achievement progress
- *     continues passively.
- *   - Cleanliness stat is restored just like a manual click.
+ * Each auto-clean awards the same +1 coin and the same cleanliness boost
+ * as a manual click — the 120-coin Roomba purchase pays back over time.
+ * Also bumps the `cleaned` counter so Tidy / Janitor achievements
+ * continue to accumulate passively while the bot works.
  *
  * State (module-local — Roomba isn't on `ham`/`save` because it's
  * orthogonal to the hamster and doesn't need to persist its position):
@@ -30,7 +27,9 @@ import { view, save, entities } from './state.js';
 import { GY_TOP, GY_BOT } from './layout.js';
 import { snd } from './audio.js';
 import { bumpCounter } from './achievements.js';
-import { spawnSparkles } from './particles.js';
+import { spawnSparkles, spawnCoinFly } from './particles.js';
+import { bumpStat } from './stats.js';
+import { persist } from './save.js';
 
 const SPEED            = 0.55;
 const SENSE_RADIUS     = 160;
@@ -86,13 +85,19 @@ function clean(item, kind) {
     entities.shells.splice(idx, 1);
     save.stats.clean = Math.min(100, save.stats.clean + 2);
   }
+  // +1 coin reward per clean — matches the manual click reward so the
+  // 120-coin Roomba investment pays back over time.
+  save.coins += 1;
+  bumpStat('coinsEarned', 1);
+  spawnCoinFly(x, y - 8, 1);
   entities.binCount = (entities.binCount || 0) + 1;
   bumpCounter('cleaned');
   spawnSparkles(x, y - 4, 5);
   spinT = SPIN_FRAMES;
   cooldown = COOLDOWN_FRAMES;
   target = null;
-  snd('click');
+  snd('coin');
+  persist();
 }
 
 export function tickRoomba() {

@@ -36,7 +36,7 @@ export const SHOP_ITEMS = {
     { id: 'ball',   emoji: '🔴', name: 'Bouncy Ball',     desc: 'Hamster will play with it.',                price:  30, type: 'toy' },
     { id: 'tunnel', emoji: '🟦', name: 'Crawl Tunnel',    desc: 'Decorative tube on floor.',                  price:  60, type: 'toy' },
     { id: 'ladder', emoji: '🪜', name: 'Climbing Ladder', desc: 'Hamster climbs, perches, and slides!',       price:  80, type: 'toy' },
-    { id: 'roomba', emoji: '🤖', name: '掃地機器人',         desc: 'Auto-cleans poops & shells. No coin reward.', price: 120, type: 'toy' },
+    { id: 'roomba', emoji: '🤖', name: '掃地機器人',         desc: 'Auto-cleans poops & shells (+1💰 each).',     price: 120, type: 'toy' },
   ],
   treats: [
     { id: 'carrot',   emoji: '🥕', name: 'Carrot',         desc: '+30 hunger, +15 happy',  price:  8, type: 'treat' },
