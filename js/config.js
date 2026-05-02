@@ -182,6 +182,41 @@ export const THEMES = {
   },
 };
 
+// Roman numeral tier suffixes — "Cuddler I", "Cuddler II", etc. Goes
+// up to VII just to leave headroom; we never expand past five tiers
+// in practice but the cost is zero.
+const TIER_LABELS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+
+// Generate a tiered set of achievements for a single counter or state
+// field. Returns an array of achievement defs ready to spread into
+// ACHIEVEMENT_DEFS.
+//
+//   counter:'pets', levels:[5, 25] → [{ count:'pets', threshold:5,
+//                                       reward:8 }, { ..., threshold:25,
+//                                       reward:13 }]
+//   custom:'coinsHeld', levels:[100,500] → entries with custom:
+//                                       'coinsHeld_100', 'coinsHeld_500'
+//
+// Reward grows exponentially with tier (×1.55 per step), rounded.
+function tier({ idP, label, icon, counter, custom, levels, baseR, desc }) {
+  return levels.map((threshold, i) => {
+    const ach = {
+      id: `${idP}${threshold}`,
+      icon,
+      name: `${label} ${TIER_LABELS[i] || `Lv${i + 1}`}`,
+      desc: desc(threshold),
+      reward: Math.round(baseR * Math.pow(1.55, i)),
+    };
+    if (custom) {
+      ach.custom = `${custom}_${threshold}`;
+    } else {
+      ach.count = counter;
+      ach.threshold = threshold;
+    }
+    return ach;
+  });
+}
+
 // Achievement definitions. Each entry is one unlockable goal. The exact
 // trigger model depends on which optional fields are present:
 //
@@ -251,4 +286,31 @@ export const ACHIEVEMENT_DEFS = [
   { id: 'woodWhisperer', icon: '🪓', name: 'Wood Whisperer',    desc: 'Chew the log 20 times.',              reward: 30, count: 'chews',  threshold: 20 },
   { id: 'photographer',  icon: '📸', name: 'Photographer',      desc: 'Take 10 snapshots.',                  reward: 25, count: 'photos', threshold: 10 },
   { id: 'bigSpender',    icon: '💸', name: 'Big Spender',       desc: 'Spend 500 coins lifetime.',           reward: 50, custom: 'bigSpender' },
+
+  // ---- Generated tier ladders (~50 entries) ----
+  // Each block expands a counter or state field across multiple thresholds.
+  // The helper below grows progression naturally without 100+ hand-written
+  // entries. Counter-based ladders rely on bumpCounter() in achievements.js;
+  // custom-based ones use the generic "<field>_<threshold>" pattern handled
+  // in passesCustom (achievements.js).
+  ...tier({ idP:'petTier_',    label:'Cuddler',     icon:'❤️',  counter:'pets',             levels:[5, 25, 250, 1000],         baseR: 8, desc:n=>`Pet your hamster ${n} times.` }),
+  ...tier({ idP:'wheelTier_',  label:'Wheel Pro',   icon:'🎡',  counter:'wheelRuns',        levels:[100, 250, 1000],           baseR:30, desc:n=>`Complete ${n} wheel runs.` }),
+  ...tier({ idP:'cleanTier_',  label:'Cleaner',     icon:'♻️',  counter:'cleaned',          levels:[1, 5, 200, 1000],          baseR: 5, desc:n=>`Clean up ${n} mess${n===1?'':'es'}.` }),
+  ...tier({ idP:'napTier_',    label:'Sleeper',     icon:'😴',  counter:'naps',             levels:[1, 25, 100],               baseR:10, desc:n=>`Take ${n} nap${n===1?'':'s'}.` }),
+  ...tier({ idP:'bathTier_',   label:'Bather',      icon:'🛁',  counter:'baths',            levels:[1, 25, 100],               baseR:10, desc:n=>`Take ${n} sand bath${n===1?'':'s'}.` }),
+  ...tier({ idP:'chewTier_',   label:'Chewer',      icon:'🪵',  counter:'chews',            levels:[1, 5, 100, 500],           baseR: 5, desc:n=>`Chew the log ${n} time${n===1?'':'s'}.` }),
+  ...tier({ idP:'photoTier_',  label:'Snap',        icon:'📸',  counter:'photos',           levels:[1, 25, 50],                baseR:10, desc:n=>`Take ${n} snapshot${n===1?'':'s'}.` }),
+  ...tier({ idP:'feedTier_',   label:'Caretaker',   icon:'🌻',  counter:'treatsFed',        levels:[1, 5, 25, 100],            baseR: 8, desc:n=>`Feed ${n} treat${n===1?'':'s'}.` }),
+  ...tier({ idP:'visTier_',    label:'Host',        icon:'👋',  counter:'visitorsReceived', levels:[5, 25, 100],               baseR:30, desc:n=>`Receive ${n} friend visits.` }),
+
+  // State-based custom checks (resolved generically in achievements.js)
+  ...tier({ idP:'earned_',  label:'Earner',    icon:'💰', custom:'coinsEarned', levels:[100, 500, 2000, 10000, 50000], baseR:25, desc:n=>`Earn ${n} coins lifetime.` }),
+  ...tier({ idP:'spent_',   label:'Spender',   icon:'💸', custom:'coinsSpent',  levels:[100, 1000, 5000],              baseR:25, desc:n=>`Spend ${n} coins lifetime.` }),
+  ...tier({ idP:'hold_',    label:'Saver',     icon:'💎', custom:'coinsHeld',   levels:[100, 500, 1000, 5000],         baseR:25, desc:n=>`Hold ${n} coins at once.` }),
+  ...tier({ idP:'rain_',    label:'Catcher',   icon:'🌧️', custom:'bestRain',    levels:[5, 15, 50],                    baseR:25, desc:n=>`Catch ${n}+ treats in one round.` }),
+  ...tier({ idP:'streakN_', label:'Devotee',   icon:'⭐', custom:'streak',      levels:[14, 30, 100],                  baseR:60, desc:n=>`Reach a ${n}-day login streak.` }),
+  ...tier({ idP:'time_',    label:'Dedicated', icon:'⏱️', custom:'playTime',    levels:[1800, 7200, 36000, 180000],    baseR:30, desc:n=>{
+    const h = n / 3600;
+    return h >= 1 ? `Play for ${h} hour${h === 1 ? '' : 's'} total.` : `Play for ${Math.round(n/60)} minutes total.`;
+  } }),
 ];

@@ -124,7 +124,25 @@ function passesCustom(def) {
     case 'dayNight':      return save.sawDay && save.sawNight;
     case 'sweetTooth':    return Array.isArray(save.treatsTried) && save.treatsTried.includes('cake');
     case 'bigSpender':    return !!save.counters && (save.counters.coinsSpent || 0) >= 500;
-    default:              return false;
+    default: {
+      // Generic tier-ladder pattern: "<field>_<threshold>" lets the
+      // tier() helper in config.js generate dozens of state-based
+      // entries without us hand-coding each case here.
+      const m = (def.custom || '').match(/^(coinsEarned|coinsSpent|coinsHeld|bestRain|streak|playTime)_(\d+)$/);
+      if (!m) return false;
+      const field = m[1];
+      const threshold = +m[2];
+      const c = save.counters || {};
+      switch (field) {
+        case 'coinsHeld':   return save.coins      >= threshold;
+        case 'coinsEarned': return (c.coinsEarned   || 0) >= threshold;
+        case 'coinsSpent':  return (c.coinsSpent    || 0) >= threshold;
+        case 'bestRain':    return (c.bestRain      || 0) >= threshold;
+        case 'streak':      return (save.streak     || 0) >= threshold;
+        case 'playTime':    return (c.playSeconds   || 0) >= threshold;
+      }
+      return false;
+    }
   }
 }
 
@@ -197,25 +215,42 @@ function renderAchievementsList() {
   const subtitle = document.getElementById('achSubtitle');
   if (!grid || !subtitle) return;
   grid.innerHTML = '';
-  let unlockedCount = 0;
-  for (const def of ACHIEVEMENT_DEFS) {
+
+  // Sort so the "what should I do next?" tasks bubble up:
+  //   1. Counter tasks with non-zero progress (closest to done first)
+  //   2. Other still-locked tasks
+  //   3. Completed tasks last
+  // This makes the modal feel like an active to-do list rather than a
+  // static catalog of distant goals.
+  const ordered = ACHIEVEMENT_DEFS.slice().map(def => {
     const got = isUnlocked(def.id);
+    let progress = 0, threshold = 0;
+    if (def.count) {
+      progress = (save.counters && save.counters[def.count]) || 0;
+      threshold = def.threshold || 1;
+    }
+    // Sort key: completed last (highest), in-progress first (lowest by ratio remaining).
+    let key;
+    if (got) key = 2;
+    else if (def.count && progress > 0) key = 0 + (1 - Math.min(progress / threshold, 0.999));
+    else key = 1;
+    return { def, got, progress, threshold, key };
+  }).sort((a, b) => a.key - b.key);
+
+  let unlockedCount = 0;
+  for (const { def, got, progress, threshold } of ordered) {
     if (got) unlockedCount++;
     const card = document.createElement('div');
     card.className = 'achCard' + (got ? ' got' : '');
-    // Counter-based achievements show progress (e.g. "7/10") so the player
-    // can see how close they are. Trigger and custom ones don't have a
-    // partial state to show, so we just gate on the icon greyscale.
-    let progress = '';
+    let progressHtml = '';
     if (!got && def.count) {
-      const cur = (save.counters && save.counters[def.count]) || 0;
-      progress = `<div class="achProgress">${Math.min(cur, def.threshold)} / ${def.threshold}</div>`;
+      progressHtml = `<div class="achProgress">${Math.min(progress, threshold)} / ${threshold}</div>`;
     }
     card.innerHTML = `
       <div class="achIcon">${def.icon}</div>
       <div class="achName">${def.name}</div>
       <div class="achDesc">${def.desc}</div>
-      ${progress}
+      ${progressHtml}
       <div class="achReward">+${def.reward}💰</div>`;
     grid.appendChild(card);
   }

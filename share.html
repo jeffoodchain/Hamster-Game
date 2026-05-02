@@ -1043,6 +1043,25 @@ var THEMES = {
     rim: "#e0a8c0"
   }
 };
+var TIER_LABELS = ["I", "II", "III", "IV", "V", "VI", "VII"];
+function tier({ idP, label, icon, counter, custom, levels, baseR, desc }) {
+  return levels.map((threshold, i) => {
+    const ach = {
+      id: `${idP}${threshold}`,
+      icon,
+      name: `${label} ${TIER_LABELS[i] || `Lv${i + 1}`}`,
+      desc: desc(threshold),
+      reward: Math.round(baseR * Math.pow(1.55, i))
+    };
+    if (custom) {
+      ach.custom = `${custom}_${threshold}`;
+    } else {
+      ach.count = counter;
+      ach.threshold = threshold;
+    }
+    return ach;
+  });
+}
 var ACHIEVEMENT_DEFS = [
   { id: "firstBite", icon: "\uD83C\uDF3B", name: "First Bite", desc: "Feed your hamster a seed.", reward: 5, trigger: "feed" },
   { id: "bottomsUp", icon: "\uD83D\uDCA7", name: "Bottoms Up", desc: "Drink from the water bottle.", reward: 5, trigger: "drink" },
@@ -1080,7 +1099,25 @@ var ACHIEVEMENT_DEFS = [
   { id: "bathLover", icon: "\uD83D\uDEC0", name: "Bath Lover", desc: "Take 10 sand baths.", reward: 30, count: "baths", threshold: 10 },
   { id: "woodWhisperer", icon: "\uD83E\uDE93", name: "Wood Whisperer", desc: "Chew the log 20 times.", reward: 30, count: "chews", threshold: 20 },
   { id: "photographer", icon: "\uD83D\uDCF8", name: "Photographer", desc: "Take 10 snapshots.", reward: 25, count: "photos", threshold: 10 },
-  { id: "bigSpender", icon: "\uD83D\uDCB8", name: "Big Spender", desc: "Spend 500 coins lifetime.", reward: 50, custom: "bigSpender" }
+  { id: "bigSpender", icon: "\uD83D\uDCB8", name: "Big Spender", desc: "Spend 500 coins lifetime.", reward: 50, custom: "bigSpender" },
+  ...tier({ idP: "petTier_", label: "Cuddler", icon: "❤️", counter: "pets", levels: [5, 25, 250, 1000], baseR: 8, desc: (n) => `Pet your hamster ${n} times.` }),
+  ...tier({ idP: "wheelTier_", label: "Wheel Pro", icon: "\uD83C\uDFA1", counter: "wheelRuns", levels: [100, 250, 1000], baseR: 30, desc: (n) => `Complete ${n} wheel runs.` }),
+  ...tier({ idP: "cleanTier_", label: "Cleaner", icon: "♻️", counter: "cleaned", levels: [1, 5, 200, 1000], baseR: 5, desc: (n) => `Clean up ${n} mess${n === 1 ? "" : "es"}.` }),
+  ...tier({ idP: "napTier_", label: "Sleeper", icon: "\uD83D\uDE34", counter: "naps", levels: [1, 25, 100], baseR: 10, desc: (n) => `Take ${n} nap${n === 1 ? "" : "s"}.` }),
+  ...tier({ idP: "bathTier_", label: "Bather", icon: "\uD83D\uDEC1", counter: "baths", levels: [1, 25, 100], baseR: 10, desc: (n) => `Take ${n} sand bath${n === 1 ? "" : "s"}.` }),
+  ...tier({ idP: "chewTier_", label: "Chewer", icon: "\uD83E\uDEB5", counter: "chews", levels: [1, 5, 100, 500], baseR: 5, desc: (n) => `Chew the log ${n} time${n === 1 ? "" : "s"}.` }),
+  ...tier({ idP: "photoTier_", label: "Snap", icon: "\uD83D\uDCF8", counter: "photos", levels: [1, 25, 50], baseR: 10, desc: (n) => `Take ${n} snapshot${n === 1 ? "" : "s"}.` }),
+  ...tier({ idP: "feedTier_", label: "Caretaker", icon: "\uD83C\uDF3B", counter: "treatsFed", levels: [1, 5, 25, 100], baseR: 8, desc: (n) => `Feed ${n} treat${n === 1 ? "" : "s"}.` }),
+  ...tier({ idP: "visTier_", label: "Host", icon: "\uD83D\uDC4B", counter: "visitorsReceived", levels: [5, 25, 100], baseR: 30, desc: (n) => `Receive ${n} friend visits.` }),
+  ...tier({ idP: "earned_", label: "Earner", icon: "\uD83D\uDCB0", custom: "coinsEarned", levels: [100, 500, 2000, 1e4, 50000], baseR: 25, desc: (n) => `Earn ${n} coins lifetime.` }),
+  ...tier({ idP: "spent_", label: "Spender", icon: "\uD83D\uDCB8", custom: "coinsSpent", levels: [100, 1000, 5000], baseR: 25, desc: (n) => `Spend ${n} coins lifetime.` }),
+  ...tier({ idP: "hold_", label: "Saver", icon: "\uD83D\uDC8E", custom: "coinsHeld", levels: [100, 500, 1000, 5000], baseR: 25, desc: (n) => `Hold ${n} coins at once.` }),
+  ...tier({ idP: "rain_", label: "Catcher", icon: "\uD83C\uDF27️", custom: "bestRain", levels: [5, 15, 50], baseR: 25, desc: (n) => `Catch ${n}+ treats in one round.` }),
+  ...tier({ idP: "streakN_", label: "Devotee", icon: "⭐", custom: "streak", levels: [14, 30, 100], baseR: 60, desc: (n) => `Reach a ${n}-day login streak.` }),
+  ...tier({ idP: "time_", label: "Dedicated", icon: "⏱️", custom: "playTime", levels: [1800, 7200, 36000, 180000], baseR: 30, desc: (n) => {
+    const h = n / 3600;
+    return h >= 1 ? `Play for ${h} hour${h === 1 ? "" : "s"} total.` : `Play for ${Math.round(n / 60)} minutes total.`;
+  } })
 ];
 
 // js/state.js
@@ -3062,8 +3099,29 @@ function passesCustom(def) {
       return Array.isArray(save.treatsTried) && save.treatsTried.includes("cake");
     case "bigSpender":
       return !!save.counters && (save.counters.coinsSpent || 0) >= 500;
-    default:
+    default: {
+      const m = (def.custom || "").match(/^(coinsEarned|coinsSpent|coinsHeld|bestRain|streak|playTime)_(\d+)$/);
+      if (!m)
+        return false;
+      const field = m[1];
+      const threshold = +m[2];
+      const c = save.counters || {};
+      switch (field) {
+        case "coinsHeld":
+          return save.coins >= threshold;
+        case "coinsEarned":
+          return (c.coinsEarned || 0) >= threshold;
+        case "coinsSpent":
+          return (c.coinsSpent || 0) >= threshold;
+        case "bestRain":
+          return (c.bestRain || 0) >= threshold;
+        case "streak":
+          return (save.streak || 0) >= threshold;
+        case "playTime":
+          return (c.playSeconds || 0) >= threshold;
+      }
       return false;
+    }
   }
 }
 function onTrigger(name) {
@@ -3116,23 +3174,37 @@ function renderAchievementsList() {
   if (!grid || !subtitle)
     return;
   grid.innerHTML = "";
-  let unlockedCount = 0;
-  for (const def of ACHIEVEMENT_DEFS) {
+  const ordered = ACHIEVEMENT_DEFS.slice().map((def) => {
     const got = isUnlocked(def.id);
+    let progress = 0, threshold = 0;
+    if (def.count) {
+      progress = save.counters && save.counters[def.count] || 0;
+      threshold = def.threshold || 1;
+    }
+    let key;
+    if (got)
+      key = 2;
+    else if (def.count && progress > 0)
+      key = 0 + (1 - Math.min(progress / threshold, 0.999));
+    else
+      key = 1;
+    return { def, got, progress, threshold, key };
+  }).sort((a, b) => a.key - b.key);
+  let unlockedCount = 0;
+  for (const { def, got, progress, threshold } of ordered) {
     if (got)
       unlockedCount++;
     const card = document.createElement("div");
     card.className = "achCard" + (got ? " got" : "");
-    let progress = "";
+    let progressHtml = "";
     if (!got && def.count) {
-      const cur = save.counters && save.counters[def.count] || 0;
-      progress = `<div class="achProgress">${Math.min(cur, def.threshold)} / ${def.threshold}</div>`;
+      progressHtml = `<div class="achProgress">${Math.min(progress, threshold)} / ${threshold}</div>`;
     }
     card.innerHTML = `
       <div class="achIcon">${def.icon}</div>
       <div class="achName">${def.name}</div>
       <div class="achDesc">${def.desc}</div>
-      ${progress}
+      ${progressHtml}
       <div class="achReward">+${def.reward}\uD83D\uDCB0</div>`;
     grid.appendChild(card);
   }
