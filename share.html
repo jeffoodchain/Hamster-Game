@@ -917,7 +917,8 @@ var SHOP_ITEMS = {
   toys: [
     { id: "ball", emoji: "\uD83D\uDD34", name: "Bouncy Ball", desc: "Hamster will play with it.", price: 30, type: "toy" },
     { id: "tunnel", emoji: "\uD83D\uDFE6", name: "Crawl Tunnel", desc: "Decorative tube on floor.", price: 60, type: "toy" },
-    { id: "ladder", emoji: "\uD83E\uDE9C", name: "Climbing Ladder", desc: "Hamster climbs, perches, and slides!", price: 80, type: "toy" }
+    { id: "ladder", emoji: "\uD83E\uDE9C", name: "Climbing Ladder", desc: "Hamster climbs, perches, and slides!", price: 80, type: "toy" },
+    { id: "roomba", emoji: "\uD83E\uDD16", name: "掃地機器人", desc: "Auto-cleans poops & shells. No coin reward.", price: 120, type: "toy" }
   ],
   treats: [
     { id: "carrot", emoji: "\uD83E\uDD55", name: "Carrot", desc: "+30 hunger, +15 happy", price: 8, type: "treat" },
@@ -952,7 +953,7 @@ var DEFAULT_SAVE = {
   coins: 25,
   selected: 0,
   muted: false,
-  owned: { ball: false, tunnel: false, ladder: false, bow: false, hat: false, crown: false },
+  owned: { ball: false, tunnel: false, ladder: false, roomba: false, bow: false, hat: false, crown: false },
   equipped: "none",
   stats: { hunger: 80, thirst: 80, energy: 80, happy: 80, clean: 80 },
   counters: {
@@ -1072,6 +1073,7 @@ var ACHIEVEMENT_DEFS = [
   { id: "streak3", icon: "\uD83C\uDF1F", name: "Daily Visitor", desc: "Reach a 3-day login streak.", reward: 25, trigger: "streak3" },
   { id: "streak7", icon: "⭐", name: "Weekly Habit", desc: "Reach a 7-day login streak.", reward: 75, trigger: "streak7" },
   { id: "sweetTooth", icon: "\uD83C\uDF70", name: "Sweet Tooth", desc: "Eat a Hamster Cake.", reward: 25, custom: "sweetTooth" },
+  { id: "robotics", icon: "\uD83E\uDD16", name: "Automation", desc: "Buy the cleaning bot.", reward: 30, custom: "ownRoomba" },
   { id: "daydreamer", icon: "\uD83D\uDE34", name: "Daydreamer", desc: "Take 10 naps.", reward: 30, count: "naps", threshold: 10 },
   { id: "bathLover", icon: "\uD83D\uDEC0", name: "Bath Lover", desc: "Take 10 sand baths.", reward: 30, count: "baths", threshold: 10 },
   { id: "woodWhisperer", icon: "\uD83E\uDE93", name: "Wood Whisperer", desc: "Chew the log 20 times.", reward: 30, count: "chews", threshold: 20 },
@@ -2999,6 +3001,8 @@ function passesCustom(def) {
       return !!save.owned.ball;
     case "ownTunnel":
       return !!save.owned.tunnel;
+    case "ownRoomba":
+      return !!save.owned.roomba;
     case "ownCrown":
       return !!save.owned.crown;
     case "allCosmetics":
@@ -3651,6 +3655,187 @@ function drawVisitor() {
   ct.fillText("\uD83D\uDC4B", v.x + 28, v.y - 30 + bobOff);
 }
 
+// js/roomba.js
+var SPEED = 0.55;
+var SENSE_RADIUS = 160;
+var CLEAN_RADIUS = 18;
+var SPIN_FRAMES = 30;
+var COOLDOWN_FRAMES2 = 60;
+var WANDER_MIN = 90;
+var WANDER_MAX = 210;
+var active = false;
+var x = 0;
+var y = 0;
+var vx = 0;
+var vy = 0;
+var angle = 0;
+var spinT = 0;
+var cooldown = 0;
+var wanderTimer = 0;
+var target = null;
+function resetRoomba() {
+  active = !!save.owned.roomba;
+  x = view.W * 0.4;
+  y = (GY_TOP() + GY_BOT()) / 2;
+  vx = SPEED;
+  vy = 0;
+  angle = 0;
+  spinT = 0;
+  cooldown = 0;
+  wanderTimer = 0;
+  target = null;
+}
+function nearest(arr) {
+  let best = null, bestD = SENSE_RADIUS;
+  for (const it of arr) {
+    const d = Math.hypot(it.x - x, it.y - y);
+    if (d < bestD) {
+      best = it;
+      bestD = d;
+    }
+  }
+  return best;
+}
+function clean(item, kind) {
+  if (kind === "poop") {
+    const idx = entities.poops.indexOf(item);
+    if (idx < 0)
+      return;
+    entities.flyingPoops.push({ sx: item.x, sy: item.y, pellets: item.pellets, t: 0 });
+    entities.poops.splice(idx, 1);
+    save.stats.clean = Math.min(100, save.stats.clean + 4);
+  } else {
+    const idx = entities.shells.indexOf(item);
+    if (idx < 0)
+      return;
+    entities.flyingItems.push({ sx: item.x, sy: item.y, angle: item.angle, t: 0 });
+    entities.shells.splice(idx, 1);
+    save.stats.clean = Math.min(100, save.stats.clean + 2);
+  }
+  entities.binCount = (entities.binCount || 0) + 1;
+  bumpCounter("cleaned");
+  spawnSparkles(x, y - 4, 5);
+  spinT = SPIN_FRAMES;
+  cooldown = COOLDOWN_FRAMES2;
+  target = null;
+  snd("click");
+}
+function tickRoomba() {
+  const wasActive = active;
+  active = !!save.owned.roomba;
+  if (active && !wasActive)
+    resetRoomba();
+  if (!active)
+    return;
+  if (spinT > 0) {
+    spinT--;
+    angle += 0.3;
+    return;
+  }
+  if (cooldown > 0)
+    cooldown--;
+  if (target) {
+    const arr = target.kind === "poop" ? entities.poops : entities.shells;
+    if (!arr.includes(target.ref))
+      target = null;
+  }
+  if (!target && cooldown <= 0) {
+    const p = nearest(entities.poops);
+    const s = nearest(entities.shells);
+    if (p && (!s || Math.hypot(p.x - x, p.y - y) <= Math.hypot(s.x - x, s.y - y))) {
+      target = { kind: "poop", ref: p };
+    } else if (s) {
+      target = { kind: "shell", ref: s };
+    }
+  }
+  if (target && cooldown <= 0) {
+    const dx = target.ref.x - x;
+    const dy = target.ref.y - y;
+    const d = Math.hypot(dx, dy);
+    if (d < CLEAN_RADIUS) {
+      clean(target.ref, target.kind);
+      return;
+    }
+    vx = dx / d * SPEED;
+    vy = dy / d * SPEED;
+  } else {
+    wanderTimer--;
+    if (wanderTimer <= 0) {
+      const ang = Math.random() * Math.PI * 2;
+      vx = Math.cos(ang) * SPEED;
+      vy = Math.sin(ang) * SPEED;
+      wanderTimer = WANDER_MIN + Math.random() * (WANDER_MAX - WANDER_MIN);
+    }
+  }
+  x += vx;
+  y += vy;
+  const xL = 60, xR = view.W - 60;
+  const yT = GY_TOP() + 8, yB = GY_BOT() - 4;
+  if (x < xL) {
+    x = xL;
+    vx = Math.abs(vx);
+    wanderTimer = 0;
+  }
+  if (x > xR) {
+    x = xR;
+    vx = -Math.abs(vx);
+    wanderTimer = 0;
+  }
+  if (y < yT) {
+    y = yT;
+    vy = Math.abs(vy);
+    wanderTimer = 0;
+  }
+  if (y > yB) {
+    y = yB;
+    vy = -Math.abs(vy);
+    wanderTimer = 0;
+  }
+  const targetAngle = Math.atan2(vy, vx);
+  let da = targetAngle - angle;
+  while (da > Math.PI)
+    da -= Math.PI * 2;
+  while (da < -Math.PI)
+    da += Math.PI * 2;
+  angle += da * 0.1;
+}
+function drawRoomba() {
+  if (!active)
+    return;
+  ct.save();
+  ct.translate(x, y);
+  ct.fillStyle = "rgba(0,0,0,0.22)";
+  ct.beginPath();
+  ct.ellipse(0, 9, 14, 4, 0, 0, Math.PI * 2);
+  ct.fill();
+  ct.fillStyle = "#3a4048";
+  ct.beginPath();
+  ct.arc(0, 0, 13, 0, Math.PI * 2);
+  ct.fill();
+  ct.strokeStyle = "#5a6068";
+  ct.lineWidth = 1.5;
+  ct.beginPath();
+  ct.arc(0, 0, 10, 0, Math.PI * 2);
+  ct.stroke();
+  if (spinT > 0) {
+    const k = spinT / SPIN_FRAMES;
+    ct.fillStyle = `rgba(120,240,255,${(0.4 + k * 0.5).toFixed(2)})`;
+    ct.beginPath();
+    ct.arc(0, 0, 6, 0, Math.PI * 2);
+    ct.fill();
+  } else {
+    ct.fillStyle = "#7a8088";
+    ct.beginPath();
+    ct.arc(0, 0, 2.5, 0, Math.PI * 2);
+    ct.fill();
+  }
+  ct.fillStyle = cooldown > 0 || spinT > 0 ? "#5af0ff" : "#80c0ff";
+  ct.beginPath();
+  ct.arc(Math.cos(angle) * 7, Math.sin(angle) * 7, 2.4, 0, Math.PI * 2);
+  ct.fill();
+  ct.restore();
+}
+
 // js/behavior.js
 function setTgt() {
   ham.tgt = Math.random() * Math.PI * 2;
@@ -3876,11 +4061,11 @@ function checkStatMaxFlashes() {
     _prevStats[key] = s[key];
   }
 }
-function addCoins(n, x, y) {
+function addCoins(n, x2, y2) {
   save.coins += n;
   bumpStat("coinsEarned", n);
-  if (x !== undefined)
-    spawnCoinFly(x, y, n);
+  if (x2 !== undefined)
+    spawnCoinFly(x2, y2, n);
   snd("coin");
   persist();
 }
@@ -4015,6 +4200,7 @@ function resetGame() {
   initBasket();
   resetMinigame();
   resetVisitor();
+  resetRoomba();
   ball.x = view.W * 0.55;
   ball.y = GY_TOP() + (GY_BOT() - GY_TOP()) * 0.55;
   ball.vx = 0;
@@ -5223,10 +5409,10 @@ function initHelp() {
 
 // js/streak.js
 function localIsoDate(d) {
-  const y = d.getFullYear();
+  const y2 = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return `${y2}-${m}-${day}`;
 }
 function todayIso() {
   return localIsoDate(new Date);
@@ -5596,6 +5782,7 @@ function draw() {
   drawBall();
   drawAmbient();
   drawVisitor();
+  drawRoomba();
   const p = hamPos();
   const isHappy = ham.mode === "happy";
   if (ham.mode === "napping") {} else if (ham.mode === "onwheel" || ham.mode === "climbing" || ham.mode === "climbingLadder" || ham.mode === "onLadder" || ham.mode === "slidingDown") {
@@ -5631,6 +5818,7 @@ function loop() {
   tickAmbient();
   tickMinigame();
   tickVisitor();
+  tickRoomba();
   tickPlayTime();
   applyDayNight();
   updateHud();

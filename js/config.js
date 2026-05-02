@@ -33,9 +33,10 @@ export const POOP_INTERVAL = 2400;
 
 export const SHOP_ITEMS = {
   toys: [
-    { id: 'ball',   emoji: '🔴', name: 'Bouncy Ball',   desc: 'Hamster will play with it.',           price: 30, type: 'toy' },
-    { id: 'tunnel', emoji: '🟦', name: 'Crawl Tunnel',  desc: 'Decorative tube on floor.',            price: 60, type: 'toy' },
-    { id: 'ladder', emoji: '🪜', name: 'Climbing Ladder', desc: 'Hamster climbs, perches, and slides!', price: 80, type: 'toy' },
+    { id: 'ball',   emoji: '🔴', name: 'Bouncy Ball',     desc: 'Hamster will play with it.',                price:  30, type: 'toy' },
+    { id: 'tunnel', emoji: '🟦', name: 'Crawl Tunnel',    desc: 'Decorative tube on floor.',                  price:  60, type: 'toy' },
+    { id: 'ladder', emoji: '🪜', name: 'Climbing Ladder', desc: 'Hamster climbs, perches, and slides!',       price:  80, type: 'toy' },
+    { id: 'roomba', emoji: '🤖', name: '掃地機器人',         desc: 'Auto-cleans poops & shells. No coin reward.', price: 120, type: 'toy' },
   ],
   treats: [
     { id: 'carrot',   emoji: '🥕', name: 'Carrot',         desc: '+30 hunger, +15 happy',  price:  8, type: 'treat' },
@@ -77,7 +78,7 @@ export const DEFAULT_SAVE = {
   coins: 25,
   selected: 0,
   muted: false,
-  owned: { ball: false, tunnel: false, ladder: false, bow: false, hat: false, crown: false },
+  owned: { ball: false, tunnel: false, ladder: false, roomba: false, bow: false, hat: false, crown: false },
   equipped: 'none',
   stats: { hunger: 80, thirst: 80, energy: 80, happy: 80, clean: 80 },
   // Achievement progression. `counters` are running totals; `achievements`
@@ -240,6 +241,7 @@ export const ACHIEVEMENT_DEFS = [
 
   // Premium content
   { id: 'sweetTooth',   icon: '🍰', name: 'Sweet Tooth',        desc: 'Eat a Hamster Cake.',                 reward: 25, custom: 'sweetTooth' },
+  { id: 'robotics',     icon: '🤖', name: 'Automation',         desc: 'Buy the cleaning bot.',               reward: 30, custom: 'ownRoomba' },
 
   // Long-tail milestones — these accumulate over many sessions
   { id: 'daydreamer',    icon: '😴', name: 'Daydreamer',        desc: 'Take 10 naps.',                       reward: 30, count: 'naps',   threshold: 10 },

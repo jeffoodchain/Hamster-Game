@@ -111,6 +111,7 @@ function passesCustom(def) {
     }
     case 'ownBall':       return !!save.owned.ball;
     case 'ownTunnel':     return !!save.owned.tunnel;
+    case 'ownRoomba':     return !!save.owned.roomba;
     case 'ownCrown':      return !!save.owned.crown;
     case 'allCosmetics':  return !!(save.owned.bow && save.owned.hat && save.owned.crown);
     case 'dayNight':      return save.sawDay && save.sawNight;

@@ -37,6 +37,7 @@ import { initFirstRun, autoDismissIfStale } from './firstrun.js';
 import { updateMusic } from './music.js';
 import { tickMinigame, drawMinigame } from './minigame.js';
 import { tickVisitor, drawVisitor } from './visitor.js';
+import { tickRoomba, drawRoomba } from './roomba.js';
 import { initStats, tickPlayTime } from './stats.js';
 import { initPhoto } from './photo.js';
 import { initHelp } from './help.js';
@@ -103,6 +104,10 @@ function draw() {
   // Drawn before the player so a player crossing paths with the visitor
   // appears in front, which reads as "the player's hamster is in focus".
   drawVisitor();
+
+  // Cleaning bot — drawn before the hamster so the hamster passes in
+  // front when their paths cross.
+  drawRoomba();
 
   // Hamster — side view while running on the wheel, front view otherwise.
   // 'napping' is intentionally not drawn — the hamster is hidden inside the hut.
@@ -171,6 +176,7 @@ function loop() {
   tickAmbient();
   tickMinigame();
   tickVisitor();
+  tickRoomba();
   tickPlayTime();
   applyDayNight();
   updateHud();

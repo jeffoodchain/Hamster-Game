@@ -53,6 +53,7 @@ import { persist } from './save.js';
 import { onTrigger, bumpCounter, noteTreat, checkAll } from './achievements.js';
 import { resetMinigame } from './minigame.js';
 import { resetVisitor } from './visitor.js';
+import { resetRoomba } from './roomba.js';
 import { bumpStat } from './stats.js';
 
 // ---------- Helpers ----------
@@ -379,6 +380,7 @@ export function resetGame() {
   initBasket();
   resetMinigame();
   resetVisitor();
+  resetRoomba();
 
   // Place the ball back in the cage and sync visibility with ownership.
   ball.x = view.W * 0.55;
