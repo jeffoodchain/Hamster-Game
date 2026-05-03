@@ -426,7 +426,8 @@ function buildOrderedCache() {
   }).sort((a, b) => a.key - b.key);
 }
 
-function renderAchievementsList() {
+function renderAchievementsList(opts) {
+  opts = opts || {};
   const grid = document.getElementById('achGrid');
   const subtitle = document.getElementById('achSubtitle');
   if (!grid || !subtitle) return;
@@ -434,6 +435,14 @@ function renderAchievementsList() {
 
   if (!_orderedCache) _orderedCache = buildOrderedCache();
   const ordered = _orderedCache;
+
+  // Show/hide the clear-filters button based on whether any filter is
+  // non-default. Cheap to check on every render.
+  const clearBtn = document.getElementById('achClear');
+  if (clearBtn) {
+    const hasFilter = _filterMode !== 'all' || _categoryFilter !== 'all' || _searchTerm !== '';
+    clearBtn.hidden = !hasFilter;
+  }
 
   // Count unlocked across the whole set (cheap — no DOM work involved).
   let unlockedCount = 0;
@@ -499,6 +508,15 @@ function renderAchievementsList() {
     : '';
   subtitle.textContent =
     `Unlocked: ${unlockedCount} / ${ACHIEVEMENT_DEFS.length}${filterNote}${sliceNote}`;
+
+  // Filter changes should bring the player back to the top of the list —
+  // otherwise after switching filters they'd be looking at random middle
+  // rows from the previous filter's view. Show More opts out so the
+  // player keeps their scroll position when expanding the page.
+  if (opts.scrollToTop) {
+    const box = document.querySelector('.achModalBox');
+    if (box) box.scrollTop = 0;
+  }
 }
 
 export function openAchievementsModal() {
@@ -553,37 +571,54 @@ export function initAchievements() {
 
   // Filter tab buttons. Click → switch active tab class + re-render.
   // Resets the page back to the first 100 since the filtered list
-  // looks different now.
+  // looks different now. scrollToTop:true brings the box back to row 0.
   const filterBtns = document.querySelectorAll('.achFilter');
   filterBtns.forEach(b => {
     b.addEventListener('click', () => {
       _filterMode = b.dataset.filter || 'all';
       filterBtns.forEach(x => x.classList.toggle('active', x === b));
       _visibleCount = PAGE_SIZE;
-      renderAchievementsList();
+      renderAchievementsList({ scrollToTop: true });
     });
   });
 
-  // Search box — debounce-free; re-render on every keystroke. With ~50k
-  // entries the filter+sort+slice is still well under one frame.
+  // Search box — debounce-free; re-render on every keystroke. With ~100k
+  // entries the filter+sort+slice is still well under one frame thanks
+  // to the sort cache.
   const search = document.getElementById('achSearch');
   if (search) {
     search.addEventListener('input', () => {
       _searchTerm = (search.value || '').trim().toLowerCase();
       _visibleCount = PAGE_SIZE;
-      renderAchievementsList();
+      renderAchievementsList({ scrollToTop: true });
     });
   }
 
   // Category dropdown — second filter dimension on top of the All/Progress/
   // Done tabs and the search box. Lets the player drill into "all pet
-  // tasks" or "all combos" etc. when 50k+ entries get unwieldy.
+  // tasks" or "all combos" etc. when 100k+ entries get unwieldy.
   const cat = document.getElementById('achCategory');
   if (cat) {
     cat.addEventListener('change', () => {
       _categoryFilter = cat.value || 'all';
       _visibleCount = PAGE_SIZE;
-      renderAchievementsList();
+      renderAchievementsList({ scrollToTop: true });
+    });
+  }
+
+  // Clear-filters button — single click resets all three filter
+  // dimensions and re-applies the default sort.
+  const clearBtn = document.getElementById('achClear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      _filterMode = 'all';
+      _categoryFilter = 'all';
+      _searchTerm = '';
+      filterBtns.forEach(x => x.classList.toggle('active', x.dataset.filter === 'all'));
+      if (search) search.value = '';
+      if (cat) cat.value = 'all';
+      _visibleCount = PAGE_SIZE;
+      renderAchievementsList({ scrollToTop: true });
     });
   }
 

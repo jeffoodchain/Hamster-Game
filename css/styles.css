@@ -712,6 +712,22 @@
 }
 .achSearch:focus { border-color: #c89058; }
 
+/* Clear-filters button — hidden when no filters active, appears when
+   any filter (status, category, search) is non-default. Single-click
+   reset is faster than re-touching three controls. */
+.achClear {
+  padding: 5px 10px;
+  border-radius: 12px;
+  border: 1.5px solid #c89058;
+  background: #fff8ed;
+  color: #6a3e10;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: bold;
+}
+.achClear:hover { background: #ffe8c8; }
+
 /* Compact single-column list view — many more entries fit per page than
    the old card grid, which matters when there are 10,000+ tasks. */
 .achGrid {

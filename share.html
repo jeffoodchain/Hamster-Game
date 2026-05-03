@@ -719,6 +719,22 @@
 }
 .achSearch:focus { border-color: #c89058; }
 
+/* Clear-filters button — hidden when no filters active, appears when
+   any filter (status, category, search) is non-default. Single-click
+   reset is faster than re-touching three controls. */
+.achClear {
+  padding: 5px 10px;
+  border-radius: 12px;
+  border: 1.5px solid #c89058;
+  background: #fff8ed;
+  color: #6a3e10;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: bold;
+}
+.achClear:hover { background: #ffe8c8; }
+
 /* Compact single-column list view — many more entries fit per page than
    the old card grid, which matters when there are 10,000+ tasks. */
 .achGrid {
@@ -1006,6 +1022,7 @@
             <option value="other">…Other</option>
           </select>
           <input type="text" class="achSearch" id="achSearch" placeholder="🔍 Search…" />
+          <button class="achClear" id="achClear" hidden title="Clear all filters">✕</button>
         </div>
         <div class="achGrid" id="achGrid"></div>
       </div>
@@ -3610,7 +3627,8 @@ function buildOrderedCache() {
     return { def, got, progress, threshold, key };
   }).sort((a, b) => a.key - b.key);
 }
-function renderAchievementsList() {
+function renderAchievementsList(opts) {
+  opts = opts || {};
   const grid = document.getElementById("achGrid");
   const subtitle = document.getElementById("achSubtitle");
   if (!grid || !subtitle)
@@ -3619,6 +3637,11 @@ function renderAchievementsList() {
   if (!_orderedCache)
     _orderedCache = buildOrderedCache();
   const ordered = _orderedCache;
+  const clearBtn = document.getElementById("achClear");
+  if (clearBtn) {
+    const hasFilter = _filterMode !== "all" || _categoryFilter !== "all" || _searchTerm !== "";
+    clearBtn.hidden = !hasFilter;
+  }
   let unlockedCount = 0;
   for (const item of ordered)
     if (item.got)
@@ -3662,6 +3685,11 @@ function renderAchievementsList() {
   const filterNote = _filterMode !== "all" || _searchTerm ? ` · ${filtered.length} match` : "";
   const sliceNote = filtered.length > _visibleCount ? ` · showing top ${_visibleCount}` : "";
   subtitle.textContent = `Unlocked: ${unlockedCount} / ${ACHIEVEMENT_DEFS.length}${filterNote}${sliceNote}`;
+  if (opts.scrollToTop) {
+    const box = document.querySelector(".achModalBox");
+    if (box)
+      box.scrollTop = 0;
+  }
 }
 function openAchievementsModal() {
   const modal = document.getElementById("achModal");
@@ -3716,7 +3744,7 @@ function initAchievements() {
       _filterMode = b.dataset.filter || "all";
       filterBtns.forEach((x) => x.classList.toggle("active", x === b));
       _visibleCount = PAGE_SIZE;
-      renderAchievementsList();
+      renderAchievementsList({ scrollToTop: true });
     });
   });
   const search = document.getElementById("achSearch");
@@ -3724,7 +3752,7 @@ function initAchievements() {
     search.addEventListener("input", () => {
       _searchTerm = (search.value || "").trim().toLowerCase();
       _visibleCount = PAGE_SIZE;
-      renderAchievementsList();
+      renderAchievementsList({ scrollToTop: true });
     });
   }
   const cat = document.getElementById("achCategory");
@@ -3732,7 +3760,22 @@ function initAchievements() {
     cat.addEventListener("change", () => {
       _categoryFilter = cat.value || "all";
       _visibleCount = PAGE_SIZE;
-      renderAchievementsList();
+      renderAchievementsList({ scrollToTop: true });
+    });
+  }
+  const clearBtn = document.getElementById("achClear");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      _filterMode = "all";
+      _categoryFilter = "all";
+      _searchTerm = "";
+      filterBtns.forEach((x) => x.classList.toggle("active", x.dataset.filter === "all"));
+      if (search)
+        search.value = "";
+      if (cat)
+        cat.value = "all";
+      _visibleCount = PAGE_SIZE;
+      renderAchievementsList({ scrollToTop: true });
     });
   }
   checkAll();
