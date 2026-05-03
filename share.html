@@ -1252,6 +1252,21 @@ var ACHIEVEMENT_DEFS = [
   { id: "comboNoStress", icon: "\uD83C\uDF37", name: "No Stress", desc: "All five stats above 80 simultaneously.", reward: 80, custom: "combo_noStress" },
   { id: "comboGoodHabits", icon: "\uD83D\uDCC5", name: "Good Habits", desc: "7-day streak AND 50+ wheel runs.", reward: 100, custom: "combo_goodHabits" },
   { id: "comboTrueLove", icon: "\uD83D\uDC97", name: "True Love", desc: "500+ pets total.", reward: 120, custom: "combo_trueLove" },
+  { id: "comboBalanced", icon: "⚖️", name: "Balanced", desc: "Pets, wheel, AND cleans all ≥ 50.", reward: 90, custom: "combo_balanced" },
+  { id: "comboBeginner", icon: "\uD83D\uDC23", name: "Apprentice", desc: "Unlock 10+ achievements.", reward: 30, custom: "combo_ach10" },
+  { id: "comboHalfway", icon: "\uD83C\uDF17", name: "Halfway There", desc: "Unlock 25+ achievements.", reward: 80, custom: "combo_ach25" },
+  { id: "comboCenturion", icon: "\uD83D\uDCAF", name: "Century", desc: "Unlock 100+ achievements.", reward: 250, custom: "combo_ach100" },
+  { id: "comboCozyDay", icon: "☕", name: "Cozy Day", desc: "3+ naps AND 3+ chews AND 3+ baths.", reward: 60, custom: "combo_cozy" },
+  { id: "comboHandyman", icon: "\uD83D\uDD27", name: "Handyman", desc: "Own ladder AND 100+ wheel runs.", reward: 80, custom: "combo_handyman" },
+  { id: "comboLuckyDay", icon: "\uD83C\uDF40", name: "Lucky Day", desc: "3-day streak AND 100+ coins held.", reward: 60, custom: "combo_luckyDay" },
+  { id: "comboTaste", icon: "\uD83C\uDF74", name: "Refined Taste", desc: "Rich Rodent AND Food Critic.", reward: 100, custom: "combo_taste" },
+  { id: "comboBasicCare", icon: "\uD83C\uDF1F", name: "Basic Care", desc: "Drink AND nap AND bath in one save.", reward: 40, custom: "combo_basicCare" },
+  { id: "comboFitness", icon: "\uD83D\uDCAA", name: "Fitness", desc: "100+ wheel runs AND clean stat ≥ 80.", reward: 80, custom: "combo_fitness" },
+  { id: "comboShopaholic", icon: "\uD83D\uDECD️", name: "Shopaholic", desc: "Spend 500+ AND own 5+ items.", reward: 100, custom: "combo_shopaholic" },
+  { id: "comboBigSpender2", icon: "\uD83D\uDC8E", name: "Diamond Spender", desc: "Spend 5000 coins lifetime.", reward: 200, custom: "combo_bigSpender2" },
+  { id: "comboLegacy", icon: "\uD83C\uDFDB️", name: "Lasting Legacy", desc: "14-day streak AND 3+ items owned.", reward: 150, custom: "combo_legacy" },
+  { id: "comboFreeSpirit", icon: "\uD83E\uDD8B", name: "Free Spirit", desc: "Saw day AND night AND 5+ visits.", reward: 80, custom: "combo_freeSpirit" },
+  { id: "comboCleanLife", icon: "\uD83E\uDE9E", name: "Clean Life", desc: "Own roomba AND clean stat ≥ 95.", reward: 60, custom: "combo_cleanLife" },
   ...generateMassTiers()
 ];
 function generateMassTiers() {
@@ -1269,7 +1284,7 @@ function generateMassTiers() {
   ];
   const out = [];
   for (const spec of specs) {
-    for (let i = 0;i < 5000; i++) {
+    for (let i = 0;i < 1e4; i++) {
       const threshold = spec.baseLevel * (i + 1);
       const reward = Math.min(9999, spec.baseR + Math.floor(threshold * 0.08));
       const ach = {
@@ -3231,6 +3246,27 @@ function showToast(icon, name, subtitle) {
 function isUnlocked(id) {
   return !!(save.achievements && save.achievements[id] && save.achievements[id].unlocked);
 }
+function countUnlocked() {
+  if (!save.achievements)
+    return 0;
+  let n = 0;
+  for (const k of Object.keys(save.achievements)) {
+    if (save.achievements[k]?.unlocked)
+      n++;
+  }
+  return n;
+}
+function countOwnedItems() {
+  let n = 0;
+  if (save.owned) {
+    for (const k of Object.keys(save.owned))
+      if (save.owned[k])
+        n++;
+  }
+  if (Array.isArray(save.themesOwned))
+    n += save.themesOwned.length;
+  return n;
+}
 function unlock(def) {
   if (isUnlocked(def.id))
     return;
@@ -3328,6 +3364,36 @@ function passesCustom(def) {
       return (save.streak || 0) >= 7 && (save.counters?.wheelRuns || 0) >= 50;
     case "combo_trueLove":
       return (save.counters?.pets || 0) >= 500;
+    case "combo_balanced":
+      return (save.counters?.pets || 0) >= 50 && (save.counters?.wheelRuns || 0) >= 50 && (save.counters?.cleaned || 0) >= 50;
+    case "combo_ach10":
+      return countUnlocked() >= 10;
+    case "combo_ach25":
+      return countUnlocked() >= 25;
+    case "combo_ach100":
+      return countUnlocked() >= 100;
+    case "combo_cozy":
+      return (save.counters?.naps || 0) >= 3 && (save.counters?.chews || 0) >= 3 && (save.counters?.baths || 0) >= 3;
+    case "combo_handyman":
+      return !!save.owned?.ladder && (save.counters?.wheelRuns || 0) >= 100;
+    case "combo_luckyDay":
+      return (save.streak || 0) >= 3 && save.coins >= 100;
+    case "combo_taste":
+      return !!save.achievements?.rich?.unlocked && !!save.achievements?.foodCritic?.unlocked;
+    case "combo_basicCare":
+      return !!save.achievements?.bottomsUp?.unlocked && !!save.achievements?.sweetDreams?.unlocked && !!save.achievements?.squeakyClean?.unlocked;
+    case "combo_fitness":
+      return (save.counters?.wheelRuns || 0) >= 100 && (save.stats?.clean || 0) >= 80;
+    case "combo_shopaholic":
+      return (save.counters?.coinsSpent || 0) >= 500 && countOwnedItems() >= 5;
+    case "combo_bigSpender2":
+      return (save.counters?.coinsSpent || 0) >= 5000;
+    case "combo_legacy":
+      return (save.streak || 0) >= 14 && countOwnedItems() >= 3;
+    case "combo_freeSpirit":
+      return save.sawDay === true && save.sawNight === true && (save.counters?.visitorsReceived || 0) >= 5;
+    case "combo_cleanLife":
+      return !!save.owned?.roomba && (save.stats?.clean || 0) >= 95;
     default: {
       const m = (def.custom || "").match(/^(coinsEarned|coinsSpent|coinsHeld|bestRain|streak|playTime)_(\d+)$/);
       if (!m)
@@ -3483,13 +3549,9 @@ function passesFilters(item) {
   }
   return true;
 }
-function renderAchievementsList() {
-  const grid = document.getElementById("achGrid");
-  const subtitle = document.getElementById("achSubtitle");
-  if (!grid || !subtitle)
-    return;
-  grid.innerHTML = "";
-  const ordered = ACHIEVEMENT_DEFS.slice().map((def) => {
+var _orderedCache = null;
+function buildOrderedCache() {
+  return ACHIEVEMENT_DEFS.slice().map((def) => {
     const got = isUnlocked(def.id);
     let progress = 0, threshold = 0;
     if (def.count) {
@@ -3505,6 +3567,16 @@ function renderAchievementsList() {
       key = 1;
     return { def, got, progress, threshold, key };
   }).sort((a, b) => a.key - b.key);
+}
+function renderAchievementsList() {
+  const grid = document.getElementById("achGrid");
+  const subtitle = document.getElementById("achSubtitle");
+  if (!grid || !subtitle)
+    return;
+  grid.innerHTML = "";
+  if (!_orderedCache)
+    _orderedCache = buildOrderedCache();
+  const ordered = _orderedCache;
   let unlockedCount = 0;
   for (const item of ordered)
     if (item.got)
@@ -3572,6 +3644,7 @@ function closeAchievementsModal() {
   const modal = document.getElementById("achModal");
   if (modal)
     modal.classList.remove("show");
+  _orderedCache = null;
 }
 function initAchievements() {
   ensureSaveShape();

@@ -345,6 +345,22 @@ export const ACHIEVEMENT_DEFS = [
   { id: 'comboNoStress',    icon: '🌷', name: 'No Stress',       desc: 'All five stats above 80 simultaneously.', reward:  80, custom: 'combo_noStress' },
   { id: 'comboGoodHabits',  icon: '📅', name: 'Good Habits',     desc: '7-day streak AND 50+ wheel runs.',      reward: 100, custom: 'combo_goodHabits' },
   { id: 'comboTrueLove',    icon: '💗', name: 'True Love',       desc: '500+ pets total.',                      reward: 120, custom: 'combo_trueLove' },
+  // Third batch — meta and lifestyle combos.
+  { id: 'comboBalanced',    icon: '⚖️', name: 'Balanced',        desc: 'Pets, wheel, AND cleans all ≥ 50.',     reward:  90, custom: 'combo_balanced' },
+  { id: 'comboBeginner',    icon: '🐣', name: 'Apprentice',      desc: 'Unlock 10+ achievements.',              reward:  30, custom: 'combo_ach10' },
+  { id: 'comboHalfway',     icon: '🌗', name: 'Halfway There',   desc: 'Unlock 25+ achievements.',              reward:  80, custom: 'combo_ach25' },
+  { id: 'comboCenturion',   icon: '💯', name: 'Century',         desc: 'Unlock 100+ achievements.',             reward: 250, custom: 'combo_ach100' },
+  { id: 'comboCozyDay',     icon: '☕', name: 'Cozy Day',        desc: '3+ naps AND 3+ chews AND 3+ baths.',    reward:  60, custom: 'combo_cozy' },
+  { id: 'comboHandyman',    icon: '🔧', name: 'Handyman',        desc: 'Own ladder AND 100+ wheel runs.',       reward:  80, custom: 'combo_handyman' },
+  { id: 'comboLuckyDay',    icon: '🍀', name: 'Lucky Day',       desc: '3-day streak AND 100+ coins held.',     reward:  60, custom: 'combo_luckyDay' },
+  { id: 'comboTaste',       icon: '🍴', name: 'Refined Taste',   desc: 'Rich Rodent AND Food Critic.',          reward: 100, custom: 'combo_taste' },
+  { id: 'comboBasicCare',   icon: '🌟', name: 'Basic Care',      desc: 'Drink AND nap AND bath in one save.',    reward:  40, custom: 'combo_basicCare' },
+  { id: 'comboFitness',     icon: '💪', name: 'Fitness',         desc: '100+ wheel runs AND clean stat ≥ 80.',  reward:  80, custom: 'combo_fitness' },
+  { id: 'comboShopaholic',  icon: '🛍️', name: 'Shopaholic',      desc: 'Spend 500+ AND own 5+ items.',           reward: 100, custom: 'combo_shopaholic' },
+  { id: 'comboBigSpender2', icon: '💎', name: 'Diamond Spender', desc: 'Spend 5000 coins lifetime.',            reward: 200, custom: 'combo_bigSpender2' },
+  { id: 'comboLegacy',      icon: '🏛️', name: 'Lasting Legacy',  desc: '14-day streak AND 3+ items owned.',     reward: 150, custom: 'combo_legacy' },
+  { id: 'comboFreeSpirit',  icon: '🦋', name: 'Free Spirit',     desc: 'Saw day AND night AND 5+ visits.',       reward:  80, custom: 'combo_freeSpirit' },
+  { id: 'comboCleanLife',   icon: '🪞', name: 'Clean Life',      desc: 'Own roomba AND clean stat ≥ 95.',       reward:  60, custom: 'combo_cleanLife' },
 
   // ---- Massive 10×2000 task ladders (=20,000 entries) ----
   // Linear-threshold ladders: 1000 tiers each across 10 counter categories.
@@ -375,8 +391,8 @@ function generateMassTiers() {
   ];
   const out = [];
   for (const spec of specs) {
-    // 5000 tiers per category × 10 categories = 50,000 mass entries.
-    for (let i = 0; i < 5000; i++) {
+    // 10,000 tiers per category × 10 categories = 100,000 mass entries.
+    for (let i = 0; i < 10000; i++) {
       const threshold = spec.baseLevel * (i + 1);
       const reward = Math.min(9999, spec.baseR + Math.floor(threshold * 0.08));
       const ach = {

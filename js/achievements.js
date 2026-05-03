@@ -80,6 +80,27 @@ function isUnlocked(id) {
   return !!(save.achievements && save.achievements[id] && save.achievements[id].unlocked);
 }
 
+// Count how many achievements the player has unlocked. Used by the
+// meta combos (Apprentice / Halfway / Century) to gate themselves on
+// overall progress through the catalog.
+function countUnlocked() {
+  if (!save.achievements) return 0;
+  let n = 0;
+  for (const k of Object.keys(save.achievements)) {
+    if (save.achievements[k]?.unlocked) n++;
+  }
+  return n;
+}
+
+// Count distinct items owned (toys + costumes + themes). Used by combos
+// like Hoarder, Shopaholic, Lasting Legacy.
+function countOwnedItems() {
+  let n = 0;
+  if (save.owned) for (const k of Object.keys(save.owned)) if (save.owned[k]) n++;
+  if (Array.isArray(save.themesOwned)) n += save.themesOwned.length;
+  return n;
+}
+
 function unlock(def) {
   if (isUnlocked(def.id)) return;
   save.achievements[def.id] = { unlocked: true, at: Date.now() };
@@ -166,6 +187,30 @@ function passesCustom(def) {
     case 'combo_noStress':     return Object.values(save.stats || {}).every(v => v >= 80);
     case 'combo_goodHabits':   return (save.streak || 0) >= 7 && ((save.counters?.wheelRuns) || 0) >= 50;
     case 'combo_trueLove':     return ((save.counters?.pets) || 0) >= 500;
+    // Third batch — meta and lifestyle.
+    case 'combo_balanced':     return ((save.counters?.pets) || 0) >= 50 &&
+                                      ((save.counters?.wheelRuns) || 0) >= 50 &&
+                                      ((save.counters?.cleaned) || 0) >= 50;
+    case 'combo_ach10':        return countUnlocked() >= 10;
+    case 'combo_ach25':        return countUnlocked() >= 25;
+    case 'combo_ach100':       return countUnlocked() >= 100;
+    case 'combo_cozy':         return ((save.counters?.naps) || 0) >= 3 &&
+                                      ((save.counters?.chews) || 0) >= 3 &&
+                                      ((save.counters?.baths) || 0) >= 3;
+    case 'combo_handyman':     return !!save.owned?.ladder && ((save.counters?.wheelRuns) || 0) >= 100;
+    case 'combo_luckyDay':     return (save.streak || 0) >= 3 && save.coins >= 100;
+    case 'combo_taste':        return !!(save.achievements?.rich?.unlocked) &&
+                                      !!(save.achievements?.foodCritic?.unlocked);
+    case 'combo_basicCare':    return !!(save.achievements?.bottomsUp?.unlocked) &&
+                                      !!(save.achievements?.sweetDreams?.unlocked) &&
+                                      !!(save.achievements?.squeakyClean?.unlocked);
+    case 'combo_fitness':      return ((save.counters?.wheelRuns) || 0) >= 100 && (save.stats?.clean || 0) >= 80;
+    case 'combo_shopaholic':   return ((save.counters?.coinsSpent) || 0) >= 500 && countOwnedItems() >= 5;
+    case 'combo_bigSpender2':  return ((save.counters?.coinsSpent) || 0) >= 5000;
+    case 'combo_legacy':       return (save.streak || 0) >= 14 && countOwnedItems() >= 3;
+    case 'combo_freeSpirit':   return save.sawDay === true && save.sawNight === true &&
+                                      ((save.counters?.visitorsReceived) || 0) >= 5;
+    case 'combo_cleanLife':    return !!save.owned?.roomba && (save.stats?.clean || 0) >= 95;
 
     default: {
       // Generic tier-ladder pattern: "<field>_<threshold>" lets the
@@ -325,19 +370,18 @@ function passesFilters(item) {
   return true;
 }
 
-function renderAchievementsList() {
-  const grid = document.getElementById('achGrid');
-  const subtitle = document.getElementById('achSubtitle');
-  if (!grid || !subtitle) return;
-  grid.innerHTML = '';
+// Sort the full achievement catalog by relevance:
+//   1. Counter tasks with non-zero progress (closest to done first)
+//   2. Other still-locked tasks
+//   3. Completed tasks last
+// At 100,000+ entries this is the expensive operation (~50-100ms), so
+// the result is cached at modal open and reused for every keystroke
+// in the search box / category dropdown / filter tabs. Cache is
+// invalidated on close.
+let _orderedCache = null;
 
-  // Sort so the "what should I do next?" tasks bubble up:
-  //   1. Counter tasks with non-zero progress (closest to done first)
-  //   2. Other still-locked tasks
-  //   3. Completed tasks last
-  // With 10000+ entries, this sort is what makes the panel usable —
-  // the visible top page is always the next-actionable goals.
-  const ordered = ACHIEVEMENT_DEFS.slice().map(def => {
+function buildOrderedCache() {
+  return ACHIEVEMENT_DEFS.slice().map(def => {
     const got = isUnlocked(def.id);
     let progress = 0, threshold = 0;
     if (def.count) {
@@ -350,6 +394,16 @@ function renderAchievementsList() {
     else key = 1;
     return { def, got, progress, threshold, key };
   }).sort((a, b) => a.key - b.key);
+}
+
+function renderAchievementsList() {
+  const grid = document.getElementById('achGrid');
+  const subtitle = document.getElementById('achSubtitle');
+  if (!grid || !subtitle) return;
+  grid.innerHTML = '';
+
+  if (!_orderedCache) _orderedCache = buildOrderedCache();
+  const ordered = _orderedCache;
 
   // Count unlocked across the whole set (cheap — no DOM work involved).
   let unlockedCount = 0;
@@ -435,6 +489,9 @@ export function openAchievementsModal() {
 export function closeAchievementsModal() {
   const modal = document.getElementById('achModal');
   if (modal) modal.classList.remove('show');
+  // Drop the sort cache so the next open rebuilds with current state
+  // (achievements unlocked since last open will move to the bottom).
+  _orderedCache = null;
 }
 
 // ---------- Init ----------
