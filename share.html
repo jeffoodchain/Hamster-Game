@@ -768,6 +768,23 @@
 }
 .achRow .achReward { font-size: 12px; color: #a06010; font-weight: bold; }
 
+/* Horizontal progress bar inside a counter row — visual companion to
+   the "47/100" numeric label, gives the scrolling task list real
+   "how close am I" affordance at a glance. */
+.achRow .achBar {
+  width: 100%;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.achRow .achBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, #c89058, #e8a040);
+  transition: width 0.4s ease;
+}
+
 /* "Show more" button at the bottom — full-width, dashed border so it
    reads as "load next page" rather than another row. */
 .achShowMore {
@@ -3586,18 +3603,22 @@ function renderAchievementsList() {
   for (const { def, got, progress, threshold } of slice) {
     const row = document.createElement("div");
     row.className = "achRow" + (got ? " got" : "");
-    let progressHtml = "";
+    let progressText = "";
+    let barHtml = "";
     if (!got && def.count) {
-      progressHtml = `<div class="achProgress">${Math.min(progress, threshold)} / ${threshold}</div>`;
+      const pct = Math.min(100, Math.round(progress / threshold * 100));
+      progressText = `<div class="achProgress">${Math.min(progress, threshold)} / ${threshold}</div>`;
+      barHtml = `<div class="achBar"><div class="achBarFill" style="width:${pct}%"></div></div>`;
     }
     row.innerHTML = `
       <div class="achIcon">${def.icon}</div>
       <div class="achMid">
         <div class="achName">${def.name}</div>
         <div class="achDesc">${def.desc}</div>
+        ${barHtml}
       </div>
       <div class="achRight">
-        ${progressHtml}
+        ${progressText}
         <div class="achReward">+${def.reward}\uD83D\uDCB0</div>
       </div>`;
     grid.appendChild(row);

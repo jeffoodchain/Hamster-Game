@@ -422,18 +422,27 @@ function renderAchievementsList() {
   for (const { def, got, progress, threshold } of slice) {
     const row = document.createElement('div');
     row.className = 'achRow' + (got ? ' got' : '');
-    let progressHtml = '';
+    let progressText = '';
+    let barHtml = '';
     if (!got && def.count) {
-      progressHtml = `<div class="achProgress">${Math.min(progress, threshold)} / ${threshold}</div>`;
+      const pct = Math.min(100, Math.round((progress / threshold) * 100));
+      progressText = `<div class="achProgress">${Math.min(progress, threshold)} / ${threshold}</div>`;
+      // Visual bar makes scanability much better — at 100k entries, a
+      // single horizontal bar communicates "how close" faster than
+      // reading numbers. Width is clamped at 100% in case `progress`
+      // exceeds threshold (defensive — shouldn't happen with our
+      // current bumpCounter logic).
+      barHtml = `<div class="achBar"><div class="achBarFill" style="width:${pct}%"></div></div>`;
     }
     row.innerHTML = `
       <div class="achIcon">${def.icon}</div>
       <div class="achMid">
         <div class="achName">${def.name}</div>
         <div class="achDesc">${def.desc}</div>
+        ${barHtml}
       </div>
       <div class="achRight">
-        ${progressHtml}
+        ${progressText}
         <div class="achReward">+${def.reward}💰</div>
       </div>`;
     grid.appendChild(row);
