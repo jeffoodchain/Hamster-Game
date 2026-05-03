@@ -319,6 +319,36 @@ const COUNTER_CATEGORIES = {
   visitorsReceived: 'visits', coinsEarned: 'money', coinsSpent: 'money',
 };
 
+// Compute how many achievements live in each category. Catalog is
+// static, so we cache the result on first call. Used by the dropdown
+// to show "(15,043)" etc. next to each option label.
+let _categoryCountsCache = null;
+function categoryCounts() {
+  if (_categoryCountsCache) return _categoryCountsCache;
+  const counts = {};
+  for (const def of ACHIEVEMENT_DEFS) {
+    const cat = categoryOf(def);
+    counts[cat] = (counts[cat] || 0) + 1;
+  }
+  _categoryCountsCache = counts;
+  return counts;
+}
+
+// Inject the per-category count into the dropdown labels — the
+// option's original text ("🤗 Pets") becomes "🤗 Pets (15,043)".
+// Saves the original in data-base-label so reformat is idempotent.
+function updateCategoryDropdownLabels() {
+  const sel = document.getElementById('achCategory');
+  if (!sel) return;
+  const counts = categoryCounts();
+  for (const opt of sel.options) {
+    if (!opt.dataset.baseLabel) opt.dataset.baseLabel = opt.textContent;
+    const base = opt.dataset.baseLabel;
+    const n = opt.value === 'all' ? ACHIEVEMENT_DEFS.length : (counts[opt.value] || 0);
+    opt.textContent = `${base} (${n.toLocaleString()})`;
+  }
+}
+
 // Bucket a single achievement def into a category. Falls back to 'other'
 // for stragglers — the modal shows them under "Other" without breaking.
 function categoryOf(def) {
@@ -561,4 +591,8 @@ export function initAchievements() {
   // has the costume but never got the achievement). Guarantees no goals
   // sit perpetually un-claimable.
   checkAll();
+
+  // Format dropdown labels with per-category counts. Catalog is static,
+  // so once at init is enough.
+  updateCategoryDropdownLabels();
 }

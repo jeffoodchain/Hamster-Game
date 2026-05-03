@@ -3498,6 +3498,31 @@ var COUNTER_CATEGORIES = {
   coinsEarned: "money",
   coinsSpent: "money"
 };
+var _categoryCountsCache = null;
+function categoryCounts() {
+  if (_categoryCountsCache)
+    return _categoryCountsCache;
+  const counts = {};
+  for (const def of ACHIEVEMENT_DEFS) {
+    const cat = categoryOf(def);
+    counts[cat] = (counts[cat] || 0) + 1;
+  }
+  _categoryCountsCache = counts;
+  return counts;
+}
+function updateCategoryDropdownLabels() {
+  const sel = document.getElementById("achCategory");
+  if (!sel)
+    return;
+  const counts = categoryCounts();
+  for (const opt of sel.options) {
+    if (!opt.dataset.baseLabel)
+      opt.dataset.baseLabel = opt.textContent;
+    const base = opt.dataset.baseLabel;
+    const n = opt.value === "all" ? ACHIEVEMENT_DEFS.length : counts[opt.value] || 0;
+    opt.textContent = `${base} (${n.toLocaleString()})`;
+  }
+}
 function categoryOf(def) {
   if (def.custom && def.custom.startsWith("combo_"))
     return "combos";
@@ -3711,6 +3736,7 @@ function initAchievements() {
     });
   }
   checkAll();
+  updateCategoryDropdownLabels();
 }
 
 // js/saveio.js
