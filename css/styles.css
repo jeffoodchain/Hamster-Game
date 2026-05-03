@@ -686,6 +686,18 @@
   border-color: #a06820;
   font-weight: bold;
 }
+.achCategory {
+  padding: 5px 8px;
+  border-radius: 12px;
+  border: 1.5px solid #d4b88a;
+  background: #fff8ed;
+  color: #4a2e10;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.achCategory:focus { border-color: #c89058; outline: none; }
+
 .achSearch {
   flex: 1;
   min-width: 120px;

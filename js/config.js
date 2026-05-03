@@ -334,6 +334,17 @@ export const ACHIEVEMENT_DEFS = [
   { id: 'comboFoodie',      icon: '🍱', name: 'True Foodie',     desc: '50+ treats fed AND tried every type.',  reward:  80, custom: 'combo_foodie' },
   { id: 'comboCuddleSage',  icon: '🤍', name: 'Cuddle Sage',     desc: 'Pet 200+ times AND own all costumes.',  reward: 100, custom: 'combo_cuddleSage' },
   { id: 'comboCleanFreak',  icon: '🧽', name: 'Clean Freak',     desc: 'Cleaned 100+ AND own the cleaning bot.', reward:  80, custom: 'combo_cleanFreak' },
+  // Second batch — multi-condition checks against new combinations.
+  { id: 'comboFirstHour',   icon: '🕐', name: 'First Hour',      desc: 'Play for 1 hour in a single session.', reward:  60, custom: 'combo_firstHour' },
+  { id: 'comboThemeCurator',icon: '🖼️', name: 'Theme Curator',   desc: 'Own 4 or more habitat themes.',         reward:  80, custom: 'combo_themeCurator' },
+  { id: 'comboAllToys',     icon: '🧸', name: 'Toy Collector',   desc: 'Own all four toys.',                    reward: 100, custom: 'combo_allToys' },
+  { id: 'comboTourGuide',   icon: '🗺️', name: 'Tour Guide',      desc: '10+ visits AND 5+ themes owned.',       reward: 120, custom: 'combo_tourGuide' },
+  { id: 'comboMultiPet',    icon: '💞', name: 'Pet & Feed',      desc: '100+ pets AND 50+ treats fed.',         reward:  90, custom: 'combo_multiPet' },
+  { id: 'comboBotMaster',   icon: '⚙️', name: 'Bot Master',      desc: 'Own roomba AND cleaned 200+.',          reward:  90, custom: 'combo_botMaster' },
+  { id: 'comboFashionShow', icon: '👗', name: 'Fashion Show',    desc: 'Own all costumes AND non-classic theme.', reward:  90, custom: 'combo_fashionShow' },
+  { id: 'comboNoStress',    icon: '🌷', name: 'No Stress',       desc: 'All five stats above 80 simultaneously.', reward:  80, custom: 'combo_noStress' },
+  { id: 'comboGoodHabits',  icon: '📅', name: 'Good Habits',     desc: '7-day streak AND 50+ wheel runs.',      reward: 100, custom: 'combo_goodHabits' },
+  { id: 'comboTrueLove',    icon: '💗', name: 'True Love',       desc: '500+ pets total.',                      reward: 120, custom: 'combo_trueLove' },
 
   // ---- Massive 10×2000 task ladders (=20,000 entries) ----
   // Linear-threshold ladders: 1000 tiers each across 10 counter categories.
@@ -364,8 +375,8 @@ function generateMassTiers() {
   ];
   const out = [];
   for (const spec of specs) {
-    // 2000 tiers per category × 10 categories = 20,000 mass entries.
-    for (let i = 0; i < 2000; i++) {
+    // 5000 tiers per category × 10 categories = 50,000 mass entries.
+    for (let i = 0; i < 5000; i++) {
       const threshold = spec.baseLevel * (i + 1);
       const reward = Math.min(9999, spec.baseR + Math.floor(threshold * 0.08));
       const ach = {

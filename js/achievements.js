@@ -153,6 +153,19 @@ function passesCustom(def) {
     case 'combo_cuddleSage':  return ((save.counters?.pets) || 0) >= 200 &&
                                      !!save.owned?.bow && !!save.owned?.hat && !!save.owned?.crown;
     case 'combo_cleanFreak':  return ((save.counters?.cleaned) || 0) >= 100 && !!save.owned?.roomba;
+    // Second batch
+    case 'combo_firstHour':    return ((save.counters?.playSeconds) || 0) >= 3600;
+    case 'combo_themeCurator': return Array.isArray(save.themesOwned) && save.themesOwned.length >= 4;
+    case 'combo_allToys':      return !!save.owned?.ball && !!save.owned?.tunnel && !!save.owned?.ladder && !!save.owned?.roomba;
+    case 'combo_tourGuide':    return ((save.counters?.visitorsReceived) || 0) >= 10 &&
+                                      Array.isArray(save.themesOwned) && save.themesOwned.length >= 5;
+    case 'combo_multiPet':     return ((save.counters?.pets) || 0) >= 100 && ((save.counters?.treatsFed) || 0) >= 50;
+    case 'combo_botMaster':    return !!save.owned?.roomba && ((save.counters?.cleaned) || 0) >= 200;
+    case 'combo_fashionShow':  return !!save.owned?.bow && !!save.owned?.hat && !!save.owned?.crown &&
+                                      !!save.owned?.wizard && save.activeTheme && save.activeTheme !== 'classic';
+    case 'combo_noStress':     return Object.values(save.stats || {}).every(v => v >= 80);
+    case 'combo_goodHabits':   return (save.streak || 0) >= 7 && ((save.counters?.wheelRuns) || 0) >= 50;
+    case 'combo_trueLove':     return ((save.counters?.pets) || 0) >= 500;
 
     default: {
       // Generic tier-ladder pattern: "<field>_<threshold>" lets the
@@ -249,8 +262,48 @@ const PAGE_SIZE = 100;
 let _visibleCount = PAGE_SIZE;
 
 // Filter / search state — drive the modal navigation. Reset on each open.
-let _filterMode = 'all';   // 'all' | 'progress' | 'done'
+let _filterMode = 'all';      // 'all' | 'progress' | 'done'
+let _categoryFilter = 'all';  // 'all' or one of the CATEGORY ids below
 let _searchTerm = '';
+
+// Counter → category mapping. Used by categoryOf() to bucket every
+// achievement into a high-level group for the dropdown filter.
+const COUNTER_CATEGORIES = {
+  pets: 'pets', wheelRuns: 'wheel', cleaned: 'clean', naps: 'sleep',
+  baths: 'bath', chews: 'chew', photos: 'photo', treatsFed: 'food',
+  visitorsReceived: 'visits', coinsEarned: 'money', coinsSpent: 'money',
+};
+
+// Bucket a single achievement def into a category. Falls back to 'other'
+// for stragglers — the modal shows them under "Other" without breaking.
+function categoryOf(def) {
+  if (def.custom && def.custom.startsWith('combo_')) return 'combos';
+  if (def.count) return COUNTER_CATEGORIES[def.count] || 'other';
+  if (def.custom) {
+    if (/^coins(Earned|Spent|Held)_/.test(def.custom) ||
+        def.custom === 'rich' || def.custom === 'bigSpender') return 'money';
+    if (def.custom === 'foodCritic' || def.custom === 'sweetTooth') return 'food';
+    if (/^streak_/.test(def.custom)) return 'streak';
+    if (def.custom === 'bestRain' || /^bestRain_/.test(def.custom)) return 'minigame';
+    if (def.custom === 'maxStats' || def.custom === 'dayNight') return 'stats';
+    if (/^playTime_/.test(def.custom)) return 'time';
+    if (/^own/.test(def.custom) || def.custom === 'allCosmetics') return 'collect';
+  }
+  if (def.trigger) {
+    if (def.trigger === 'pet' || def.trigger === 'petVisitor') return 'pets';
+    if (def.trigger === 'feed' || def.trigger === 'treat' || def.trigger === 'feedVisitor') return 'food';
+    if (def.trigger === 'drink')  return 'water';
+    if (def.trigger === 'nap')    return 'sleep';
+    if (def.trigger === 'bath')   return 'bath';
+    if (def.trigger === 'chew')   return 'chew';
+    if (def.trigger === 'equip')  return 'collect';
+    if (def.trigger === 'visitor') return 'visits';
+    if (def.trigger === 'ladder') return 'play';
+    if (def.trigger === 'treatRain' || def.trigger === 'treatStorm') return 'minigame';
+    if (def.trigger.startsWith('streak')) return 'streak';
+  }
+  return 'other';
+}
 
 // Reset visible count to the first page whenever the modal opens — saves
 // us from accidentally remembering huge expansion across opens.
@@ -264,6 +317,7 @@ function passesFilters(item) {
     if (item.def.count && (item.progress || 0) === 0) return false;
   }
   if (_filterMode === 'done' && !item.got) return false;
+  if (_categoryFilter !== 'all' && categoryOf(item.def) !== _categoryFilter) return false;
   if (_searchTerm) {
     const hay = (item.def.name + ' ' + item.def.desc).toLowerCase();
     if (!hay.includes(_searchTerm)) return false;
@@ -362,12 +416,15 @@ export function openAchievementsModal() {
   // player isn't surprised by stale "in progress" / search state.
   resetVisibleCount();
   _filterMode = 'all';
+  _categoryFilter = 'all';
   _searchTerm = '';
   document.querySelectorAll('.achFilter').forEach(b => {
     b.classList.toggle('active', b.dataset.filter === 'all');
   });
   const search = document.getElementById('achSearch');
   if (search) search.value = '';
+  const cat = document.getElementById('achCategory');
+  if (cat) cat.value = 'all';
 
   renderAchievementsList();
   modal.classList.add('show');
@@ -411,12 +468,24 @@ export function initAchievements() {
     });
   });
 
-  // Search box — debounce-free; re-render on every keystroke. With ~10k
+  // Search box — debounce-free; re-render on every keystroke. With ~50k
   // entries the filter+sort+slice is still well under one frame.
   const search = document.getElementById('achSearch');
   if (search) {
     search.addEventListener('input', () => {
       _searchTerm = (search.value || '').trim().toLowerCase();
+      _visibleCount = PAGE_SIZE;
+      renderAchievementsList();
+    });
+  }
+
+  // Category dropdown — second filter dimension on top of the All/Progress/
+  // Done tabs and the search box. Lets the player drill into "all pet
+  // tasks" or "all combos" etc. when 50k+ entries get unwieldy.
+  const cat = document.getElementById('achCategory');
+  if (cat) {
+    cat.addEventListener('change', () => {
+      _categoryFilter = cat.value || 'all';
       _visibleCount = PAGE_SIZE;
       renderAchievementsList();
     });
