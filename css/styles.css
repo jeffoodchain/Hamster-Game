@@ -779,6 +779,20 @@
 }
 .achRow .achReward { font-size: 12px; color: #a06010; font-weight: bold; }
 
+/* Small category chip on each row — only shown when viewing All
+   categories. Quietly tucked above the progress/reward column so the
+   eye finds it when needed but doesn't add visual weight when scanning
+   names. */
+.achRow .achCatChip {
+  font-size: 9px;
+  background: rgba(160, 110, 40, 0.12);
+  color: #6a4a20;
+  padding: 1px 7px;
+  border-radius: 8px;
+  white-space: nowrap;
+  font-weight: normal;
+}
+
 /* Horizontal progress bar inside a counter row — visual companion to
    the "47/100" numeric label, gives the scrolling task list real
    "how close am I" affordance at a glance. */

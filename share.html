@@ -786,6 +786,20 @@
 }
 .achRow .achReward { font-size: 12px; color: #a06010; font-weight: bold; }
 
+/* Small category chip on each row — only shown when viewing All
+   categories. Quietly tucked above the progress/reward column so the
+   eye finds it when needed but doesn't add visual weight when scanning
+   names. */
+.achRow .achCatChip {
+  font-size: 9px;
+  background: rgba(160, 110, 40, 0.12);
+  color: #6a4a20;
+  padding: 1px 7px;
+  border-radius: 8px;
+  white-space: nowrap;
+  font-weight: normal;
+}
+
 /* Horizontal progress bar inside a counter row — visual companion to
    the "47/100" numeric label, gives the scrolling task list real
    "how close am I" affordance at a glance. */
@@ -3524,6 +3538,27 @@ var COUNTER_CATEGORIES = {
   coinsEarned: "money",
   coinsSpent: "money"
 };
+var CATEGORY_LABELS = {
+  pets: "\uD83E\uDD17 Pets",
+  wheel: "\uD83C\uDFA1 Wheel",
+  clean: "♻️ Cleaning",
+  sleep: "\uD83D\uDCA4 Sleep",
+  bath: "\uD83D\uDEC1 Bath",
+  chew: "\uD83E\uDEB5 Chew",
+  photo: "\uD83D\uDCF8 Photo",
+  food: "\uD83E\uDD55 Food",
+  water: "\uD83D\uDCA7 Water",
+  visits: "\uD83D\uDC4B Visits",
+  money: "\uD83D\uDCB0 Money",
+  streak: "\uD83C\uDF1F Streak",
+  minigame: "\uD83C\uDF27️ Mini-game",
+  collect: "\uD83C\uDFA9 Collection",
+  stats: "\uD83D\uDCCA Stats",
+  time: "⏱️ Time",
+  play: "\uD83E\uDE9C Play",
+  combos: "\uD83E\uDDE9 Combos",
+  other: "Other"
+};
 var _categoryCountsCache = null;
 function categoryCounts() {
   if (_categoryCountsCache)
@@ -3696,6 +3731,7 @@ function renderAchievementsList(opts) {
     if (item.got)
       unlockedCount++;
   const filtered = ordered.filter(passesFilters);
+  const showChip = _categoryFilter === "all";
   const slice = filtered.slice(0, _visibleCount);
   for (const { def, got, progress, threshold } of slice) {
     const row = document.createElement("div");
@@ -3707,6 +3743,7 @@ function renderAchievementsList(opts) {
       progressText = `<div class="achProgress">${Math.min(progress, threshold)} / ${threshold}</div>`;
       barHtml = `<div class="achBar"><div class="achBarFill" style="width:${pct}%"></div></div>`;
     }
+    const chipHtml = showChip ? `<div class="achCatChip">${CATEGORY_LABELS[categoryOf(def)] || ""}</div>` : "";
     row.innerHTML = `
       <div class="achIcon">${def.icon}</div>
       <div class="achMid">
@@ -3715,6 +3752,7 @@ function renderAchievementsList(opts) {
         ${barHtml}
       </div>
       <div class="achRight">
+        ${chipHtml}
         ${progressText}
         <div class="achReward">+${def.reward}\uD83D\uDCB0</div>
       </div>`;

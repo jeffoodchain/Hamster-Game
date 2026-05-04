@@ -321,6 +321,17 @@ const COUNTER_CATEGORIES = {
   visitorsReceived: 'visits', coinsEarned: 'money', coinsSpent: 'money',
 };
 
+// Human-readable label for each category — shown on row chips when
+// the modal is in "All categories" mode. Drilled-in views skip the
+// chip since it would be redundant.
+const CATEGORY_LABELS = {
+  pets:'🤗 Pets', wheel:'🎡 Wheel', clean:'♻️ Cleaning', sleep:'💤 Sleep',
+  bath:'🛁 Bath', chew:'🪵 Chew', photo:'📸 Photo', food:'🥕 Food',
+  water:'💧 Water', visits:'👋 Visits', money:'💰 Money', streak:'🌟 Streak',
+  minigame:'🌧️ Mini-game', collect:'🎩 Collection', stats:'📊 Stats',
+  time:'⏱️ Time', play:'🪜 Play', combos:'🧩 Combos', other:'Other',
+};
+
 // Compute how many achievements live in each category. Catalog is
 // static, so we cache the result on first call. Used by the dropdown
 // to show "(15,043)" etc. next to each option label.
@@ -513,6 +524,10 @@ function renderAchievementsList(opts) {
   // button. The list row layout — icon | name+desc stack | right-aligned
   // progress + reward — is much denser than the old card grid, so many
   // more rows fit per page.
+  // Chip only shown in the All view — when drilled into a category
+  // it would be redundant on every row.
+  const showChip = _categoryFilter === 'all';
+
   const slice = filtered.slice(0, _visibleCount);
   for (const { def, got, progress, threshold } of slice) {
     const row = document.createElement('div');
@@ -522,13 +537,11 @@ function renderAchievementsList(opts) {
     if (!got && def.count) {
       const pct = Math.min(100, Math.round((progress / threshold) * 100));
       progressText = `<div class="achProgress">${Math.min(progress, threshold)} / ${threshold}</div>`;
-      // Visual bar makes scanability much better — at 100k entries, a
-      // single horizontal bar communicates "how close" faster than
-      // reading numbers. Width is clamped at 100% in case `progress`
-      // exceeds threshold (defensive — shouldn't happen with our
-      // current bumpCounter logic).
       barHtml = `<div class="achBar"><div class="achBarFill" style="width:${pct}%"></div></div>`;
     }
+    const chipHtml = showChip
+      ? `<div class="achCatChip">${CATEGORY_LABELS[categoryOf(def)] || ''}</div>`
+      : '';
     row.innerHTML = `
       <div class="achIcon">${def.icon}</div>
       <div class="achMid">
@@ -537,6 +550,7 @@ function renderAchievementsList(opts) {
         ${barHtml}
       </div>
       <div class="achRight">
+        ${chipHtml}
         ${progressText}
         <div class="achReward">+${def.reward}💰</div>
       </div>`;
