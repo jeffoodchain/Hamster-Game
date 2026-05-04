@@ -306,10 +306,12 @@ function clearButtonNew() {
 const PAGE_SIZE = 100;
 let _visibleCount = PAGE_SIZE;
 
-// Filter / search state — drive the modal navigation. Reset on each open.
+// Filter / search / sort state — drive the modal navigation. Reset on
+// each open.
 let _filterMode = 'all';      // 'all' | 'progress' | 'done'
 let _categoryFilter = 'all';  // 'all' or one of the CATEGORY ids below
 let _searchTerm = '';
+let _sortMode = 'progress';   // 'progress' | 'name' | 'reward' | 'threshold'
 
 // Counter → category mapping. Used by categoryOf() to bucket every
 // achievement into a high-level group for the dropdown filter.
@@ -411,19 +413,45 @@ function passesFilters(item) {
 let _orderedCache = null;
 
 function buildOrderedCache() {
-  return ACHIEVEMENT_DEFS.slice().map(def => {
+  // First pass: build the row metadata (got / progress / threshold).
+  const items = ACHIEVEMENT_DEFS.slice().map(def => {
     const got = isUnlocked(def.id);
     let progress = 0, threshold = 0;
     if (def.count) {
       progress = (save.counters && save.counters[def.count]) || 0;
       threshold = def.threshold || 1;
     }
-    let key;
-    if (got) key = 2;
-    else if (def.count && progress > 0) key = 0 + (1 - Math.min(progress / threshold, 0.999));
-    else key = 1;
-    return { def, got, progress, threshold, key };
-  }).sort((a, b) => a.key - b.key);
+    return { def, got, progress, threshold };
+  });
+
+  // Sort according to the current mode. Each branch produces a stable
+  // ordering — comparator returns ±1 / 0 from a single field.
+  switch (_sortMode) {
+    case 'name':
+      items.sort((a, b) => a.def.name.localeCompare(b.def.name));
+      break;
+    case 'reward':
+      // Highest reward first — the "what's worth doing" view.
+      items.sort((a, b) => (b.def.reward || 0) - (a.def.reward || 0));
+      break;
+    case 'threshold':
+      // Smallest goals first — the "easiest pickings" view. Custom
+      // entries without an explicit threshold sort as 0 (top).
+      items.sort((a, b) => (a.threshold || 0) - (b.threshold || 0));
+      break;
+    case 'progress':
+    default:
+      // Default progress sort: in-progress closest to done first,
+      // then untouched, then completed. Same heuristic as before.
+      for (const it of items) {
+        if (it.got) it.key = 2;
+        else if (it.def.count && it.progress > 0)
+          it.key = 1 - Math.min(it.progress / it.threshold, 0.999);
+        else it.key = 1;
+      }
+      items.sort((a, b) => a.key - b.key);
+  }
+  return items;
 }
 
 function renderAchievementsList(opts) {
@@ -529,6 +557,7 @@ export function openAchievementsModal() {
   _filterMode = 'all';
   _categoryFilter = 'all';
   _searchTerm = '';
+  _sortMode = 'progress';
   document.querySelectorAll('.achFilter').forEach(b => {
     b.classList.toggle('active', b.dataset.filter === 'all');
   });
@@ -536,6 +565,8 @@ export function openAchievementsModal() {
   if (search) search.value = '';
   const cat = document.getElementById('achCategory');
   if (cat) cat.value = 'all';
+  const sortSel = document.getElementById('achSort');
+  if (sortSel) sortSel.value = 'progress';
 
   renderAchievementsList();
   modal.classList.add('show');
@@ -606,17 +637,33 @@ export function initAchievements() {
     });
   }
 
-  // Clear-filters button — single click resets all three filter
-  // dimensions and re-applies the default sort.
+  // Sort dropdown — re-orders the cached list. Must invalidate the
+  // sort cache (it baked in the previous _sortMode) so the rebuild
+  // picks up the new mode.
+  const sortSel = document.getElementById('achSort');
+  if (sortSel) {
+    sortSel.addEventListener('change', () => {
+      _sortMode = sortSel.value || 'progress';
+      _orderedCache = null; // force rebuild with the new sort
+      _visibleCount = PAGE_SIZE;
+      renderAchievementsList({ scrollToTop: true });
+    });
+  }
+
+  // Clear-filters button — single click resets all filter and sort
+  // controls back to defaults.
   const clearBtn = document.getElementById('achClear');
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       _filterMode = 'all';
       _categoryFilter = 'all';
       _searchTerm = '';
+      _sortMode = 'progress';
+      _orderedCache = null;
       filterBtns.forEach(x => x.classList.toggle('active', x.dataset.filter === 'all'));
       if (search) search.value = '';
       if (cat) cat.value = 'all';
+      if (sortSel) sortSel.value = 'progress';
       _visibleCount = PAGE_SIZE;
       renderAchievementsList({ scrollToTop: true });
     });

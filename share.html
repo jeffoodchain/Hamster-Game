@@ -693,7 +693,8 @@
   border-color: #a06820;
   font-weight: bold;
 }
-.achCategory {
+.achCategory,
+.achSort {
   padding: 5px 8px;
   border-radius: 12px;
   border: 1.5px solid #d4b88a;
@@ -703,7 +704,8 @@
   font-family: inherit;
   cursor: pointer;
 }
-.achCategory:focus { border-color: #c89058; outline: none; }
+.achCategory:focus,
+.achSort:focus { border-color: #c89058; outline: none; }
 
 .achSearch {
   flex: 1;
@@ -1020,6 +1022,12 @@
             <option value="play">🪜 Play</option>
             <option value="combos">🧩 Combos</option>
             <option value="other">…Other</option>
+          </select>
+          <select class="achSort" id="achSort" title="Sort order">
+            <option value="progress">Sort: Progress</option>
+            <option value="name">Sort: A→Z</option>
+            <option value="reward">Sort: Reward</option>
+            <option value="threshold">Sort: Threshold</option>
           </select>
           <input type="text" class="achSearch" id="achSearch" placeholder="🔍 Search…" />
           <button class="achClear" id="achClear" hidden title="Clear all filters">✕</button>
@@ -3502,6 +3510,7 @@ var _visibleCount = PAGE_SIZE;
 var _filterMode = "all";
 var _categoryFilter = "all";
 var _searchTerm = "";
+var _sortMode = "progress";
 var COUNTER_CATEGORIES = {
   pets: "pets",
   wheelRuns: "wheel",
@@ -3610,22 +3619,38 @@ function passesFilters(item) {
 }
 var _orderedCache = null;
 function buildOrderedCache() {
-  return ACHIEVEMENT_DEFS.slice().map((def) => {
+  const items = ACHIEVEMENT_DEFS.slice().map((def) => {
     const got = isUnlocked(def.id);
     let progress = 0, threshold = 0;
     if (def.count) {
       progress = save.counters && save.counters[def.count] || 0;
       threshold = def.threshold || 1;
     }
-    let key;
-    if (got)
-      key = 2;
-    else if (def.count && progress > 0)
-      key = 0 + (1 - Math.min(progress / threshold, 0.999));
-    else
-      key = 1;
-    return { def, got, progress, threshold, key };
-  }).sort((a, b) => a.key - b.key);
+    return { def, got, progress, threshold };
+  });
+  switch (_sortMode) {
+    case "name":
+      items.sort((a, b) => a.def.name.localeCompare(b.def.name));
+      break;
+    case "reward":
+      items.sort((a, b) => (b.def.reward || 0) - (a.def.reward || 0));
+      break;
+    case "threshold":
+      items.sort((a, b) => (a.threshold || 0) - (b.threshold || 0));
+      break;
+    case "progress":
+    default:
+      for (const it of items) {
+        if (it.got)
+          it.key = 2;
+        else if (it.def.count && it.progress > 0)
+          it.key = 1 - Math.min(it.progress / it.threshold, 0.999);
+        else
+          it.key = 1;
+      }
+      items.sort((a, b) => a.key - b.key);
+  }
+  return items;
 }
 function renderAchievementsList(opts) {
   opts = opts || {};
@@ -3700,6 +3725,7 @@ function openAchievementsModal() {
   _filterMode = "all";
   _categoryFilter = "all";
   _searchTerm = "";
+  _sortMode = "progress";
   document.querySelectorAll(".achFilter").forEach((b) => {
     b.classList.toggle("active", b.dataset.filter === "all");
   });
@@ -3709,6 +3735,9 @@ function openAchievementsModal() {
   const cat = document.getElementById("achCategory");
   if (cat)
     cat.value = "all";
+  const sortSel = document.getElementById("achSort");
+  if (sortSel)
+    sortSel.value = "progress";
   renderAchievementsList();
   modal.classList.add("show");
   clearButtonNew();
@@ -3763,17 +3792,30 @@ function initAchievements() {
       renderAchievementsList({ scrollToTop: true });
     });
   }
+  const sortSel = document.getElementById("achSort");
+  if (sortSel) {
+    sortSel.addEventListener("change", () => {
+      _sortMode = sortSel.value || "progress";
+      _orderedCache = null;
+      _visibleCount = PAGE_SIZE;
+      renderAchievementsList({ scrollToTop: true });
+    });
+  }
   const clearBtn = document.getElementById("achClear");
   if (clearBtn) {
     clearBtn.addEventListener("click", () => {
       _filterMode = "all";
       _categoryFilter = "all";
       _searchTerm = "";
+      _sortMode = "progress";
+      _orderedCache = null;
       filterBtns.forEach((x) => x.classList.toggle("active", x.dataset.filter === "all"));
       if (search)
         search.value = "";
       if (cat)
         cat.value = "all";
+      if (sortSel)
+        sortSel.value = "progress";
       _visibleCount = PAGE_SIZE;
       renderAchievementsList({ scrollToTop: true });
     });

@@ -686,7 +686,8 @@
   border-color: #a06820;
   font-weight: bold;
 }
-.achCategory {
+.achCategory,
+.achSort {
   padding: 5px 8px;
   border-radius: 12px;
   border: 1.5px solid #d4b88a;
@@ -696,7 +697,8 @@
   font-family: inherit;
   cursor: pointer;
 }
-.achCategory:focus { border-color: #c89058; outline: none; }
+.achCategory:focus,
+.achSort:focus { border-color: #c89058; outline: none; }
 
 .achSearch {
   flex: 1;
