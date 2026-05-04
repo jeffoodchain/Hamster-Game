@@ -3536,6 +3536,29 @@ function categoryCounts() {
   _categoryCountsCache = counts;
   return counts;
 }
+function updateFilterTabCounts(ordered) {
+  let inProg = 0, done = 0;
+  for (const it of ordered) {
+    if (it.got)
+      done++;
+    else if (it.def.count && it.progress > 0)
+      inProg++;
+  }
+  const total = ordered.length;
+  document.querySelectorAll(".achFilter").forEach((b) => {
+    if (!b.dataset.baseLabel)
+      b.dataset.baseLabel = b.textContent;
+    const base = b.dataset.baseLabel;
+    let n = 0;
+    if (b.dataset.filter === "all")
+      n = total;
+    else if (b.dataset.filter === "progress")
+      n = inProg;
+    else if (b.dataset.filter === "done")
+      n = done;
+    b.textContent = `${base} (${n.toLocaleString()})`;
+  });
+}
 function updateCategoryDropdownLabels() {
   const sel = document.getElementById("achCategory");
   if (!sel)
@@ -3667,6 +3690,7 @@ function renderAchievementsList(opts) {
     const hasFilter = _filterMode !== "all" || _categoryFilter !== "all" || _searchTerm !== "";
     clearBtn.hidden = !hasFilter;
   }
+  updateFilterTabCounts(ordered);
   let unlockedCount = 0;
   for (const item of ordered)
     if (item.got)

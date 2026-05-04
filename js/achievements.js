@@ -336,6 +336,28 @@ function categoryCounts() {
   return counts;
 }
 
+// Inject the live counts into each status tab — "All (100,131)",
+// "In progress (47)", "Done (28)". Counts come from the (already
+// computed) ordered cache so this is cheap. dataset.baseLabel saves
+// the original text so reformat is idempotent across renders.
+function updateFilterTabCounts(ordered) {
+  let inProg = 0, done = 0;
+  for (const it of ordered) {
+    if (it.got) done++;
+    else if (it.def.count && it.progress > 0) inProg++;
+  }
+  const total = ordered.length;
+  document.querySelectorAll('.achFilter').forEach(b => {
+    if (!b.dataset.baseLabel) b.dataset.baseLabel = b.textContent;
+    const base = b.dataset.baseLabel;
+    let n = 0;
+    if (b.dataset.filter === 'all') n = total;
+    else if (b.dataset.filter === 'progress') n = inProg;
+    else if (b.dataset.filter === 'done') n = done;
+    b.textContent = `${base} (${n.toLocaleString()})`;
+  });
+}
+
 // Inject the per-category count into the dropdown labels — the
 // option's original text ("🤗 Pets") becomes "🤗 Pets (15,043)".
 // Saves the original in data-base-label so reformat is idempotent.
@@ -471,6 +493,12 @@ function renderAchievementsList(opts) {
     const hasFilter = _filterMode !== 'all' || _categoryFilter !== 'all' || _searchTerm !== '';
     clearBtn.hidden = !hasFilter;
   }
+
+  // Update each status tab's label with a live count: "All (100,131)",
+  // "In progress (47)", "Done (28)". Counts are over the full catalog
+  // (not the current category/search filter) so the tabs always
+  // communicate "global state".
+  updateFilterTabCounts(ordered);
 
   // Count unlocked across the whole set (cheap — no DOM work involved).
   let unlockedCount = 0;
